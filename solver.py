@@ -70,7 +70,7 @@ def solve_subgraph(n, adj_lists, vv):
                     new_edges.append((new_v, new_w))
 
     if len(vv) > 1000:
-        return run_vc_solver(vv, new_edges, bound, 999999)
+        return run_vc_solver(vv, new_edges, 0, 999999)
     else:
         result = run_vc_solver(vv, new_edges, 0, 5)
         if result is not None:
