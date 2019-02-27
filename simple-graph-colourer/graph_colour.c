@@ -148,9 +148,6 @@ int main(int argc, char** argv)
     set_default_arguments();
     argp_parse(&argp, argc, argv, 0, 0, 0);
 
-    set_start_time();
-    set_time_limit_ms(arguments.time_limit);
-
     struct Graph* input_g_unsorted = readGraph(arguments.filename, arguments.fractional_level);
 
     int *shuffled_ints = malloc(input_g_unsorted->n * sizeof *shuffled_ints);
@@ -177,6 +174,9 @@ int main(int argc, char** argv)
         }
     }
     struct Graph* input_g = induced_subgraph(input_g_unsorted, vv, input_g_unsorted->n);
+
+    set_start_time();
+    set_time_limit_ms(arguments.time_limit);
 
     for (int num_colours=0; ; num_colours++) {
         struct Solution clq;
