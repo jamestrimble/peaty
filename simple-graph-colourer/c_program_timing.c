@@ -6,7 +6,7 @@
 
 struct timespec start_time;
 
-long time_limit_sec = 0;
+long time_limit_ms = 0;
 
 bool timed_out = false;
 
@@ -29,14 +29,14 @@ long timespec_to_msec(struct timespec ts)
     return ts.tv_sec*1000 + ts.tv_nsec/1000000;
 }
 
-void set_time_limit_sec(long time_limit)
+void set_time_limit_ms(long time_limit)
 {
-    time_limit_sec = time_limit;
+    time_limit_ms = time_limit;
 }
 
 void check_for_timeout()
 {
-    timed_out = time_limit_sec && get_elapsed_timespec().tv_sec >= time_limit_sec;
+    timed_out = time_limit_ms && timespec_to_msec(get_elapsed_timespec()) >= time_limit_ms;
 }
 
 bool is_timeout_flag_set()

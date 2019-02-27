@@ -22,7 +22,7 @@ static struct argp_option options[] = {
     {"quiet", 'q', 0, 0, "Quiet output"},
     {"rng-seed", 'r', "SEED", 0, "seed for RNG to add a hint of randomness to vertex order"},
     {"fractional-level", 'f', "LEVEL", 0, "1 for colouring, 2 for two colours per vertex, etc"},
-    {"time-limit", 'l', "LIMIT", 0, "Time limit in seconds"},
+    {"time-limit", 'l', "LIMIT", 0, "Time limit in milliseconds"},
     { 0 }
 };
 
@@ -149,7 +149,7 @@ int main(int argc, char** argv)
     argp_parse(&argp, argc, argv, 0, 0, 0);
 
     set_start_time();
-    set_time_limit_sec(arguments.time_limit);
+    set_time_limit_ms(arguments.time_limit);
 
     struct Graph* input_g_unsorted = readGraph(arguments.filename, arguments.fractional_level);
 

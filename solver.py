@@ -69,14 +69,20 @@ def solve_subgraph(n, adj_lists, vv):
                 if new_w != -1:
                     new_edges.append((new_v, new_w))
 
-    if len(vv) > 1000:
+    if len(vv) > 500:
         return run_vc_solver(vv, new_edges, 0, 999999)
     else:
         result = run_vc_solver(vv, new_edges, 0, 5)
         if result is not None:
             return result
-        for seed in range(40):
-            bound = get_colouring_bound(vv, new_edges, 2, seed, 1 if seed<35 else 3)
+        for seed in range(45):
+            if seed < 20:
+                time_limit = 300   # milliseconds
+            elif seed < 40:
+                time_limit = 1000
+            else:
+                time_limit = 3000
+            bound = get_colouring_bound(vv, new_edges, 2, seed, time_limit)
             if bound == 0:
                 print "c colouring bound timed out with seed", seed
             else:
