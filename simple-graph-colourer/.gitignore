@@ -1,0 +1,7 @@
+graph_colour
+solution_for_*
+*.grf
+*.edges
+result
+*.swp
+*.bak
