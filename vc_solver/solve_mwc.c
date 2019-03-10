@@ -52,8 +52,7 @@ static struct argp_option options[] = {
 enum class FileFormat
 {
     Dimacs,
-    Mtx,
-    Edges
+    Pace
 };
 
 static struct {
@@ -104,10 +103,8 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state)
             arguments.num_threads = atoi(arg);
             break;
         case 'f':
-            if (!strcmp(arg, "MTX") || !strcmp(arg, "mtx"))
-                arguments.file_format = FileFormat::Mtx;
-            else if (!strcmp(arg, "EDGES") || !strcmp(arg, "edges"))
-                arguments.file_format = FileFormat::Edges;
+            if (!strcmp(arg, "PACE") || !strcmp(arg, "pace"))
+                arguments.file_format = FileFormat::Pace;
             break;
         case ARGP_KEY_ARG:
             if (arguments.arg_num >= 1)
@@ -241,9 +238,8 @@ int main(int argc, char** argv) {
         arguments.num_threads = 1;
 
     const SparseGraph g =
-            arguments.file_format==FileFormat::Mtx   ? readSparseGraphMtxFormat(arguments.filename) :
-            arguments.file_format==FileFormat::Edges ? readSparseGraphEdgesFormat(arguments.filename, 0) :
-                                                       readSparseGraph(arguments.filename);
+            arguments.file_format==FileFormat::Pace ? readSparseGraphPaceFormat(arguments.filename) :
+                                                      readSparseGraph(arguments.filename);
 
     Params params {arguments.colouring_variant, arguments.max_sat_level, arguments.algorithm_num,
             arguments.num_threads, arguments.quiet, arguments.unweighted_sort, arguments.ind_set_upper_bound};

@@ -152,12 +152,8 @@ struct SparseGraph
     }
 };
 
-SparseGraph fastReadSparseGraph(char* filename);
-
 SparseGraph readSparseGraph(char* filename);
 
-SparseGraph readSparseGraphEdgesFormat(char* filename, unsigned num_lines_to_skip);
-
-SparseGraph readSparseGraphMtxFormat(char* filename);
+SparseGraph readSparseGraphPaceFormat(char* filename);
 
 #endif
