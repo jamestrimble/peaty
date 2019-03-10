@@ -4,26 +4,10 @@ std::shared_ptr<Colourer> Colourer::create_colourer(Graph & g, const Params & pa
 {
     switch(params.colouring_variant)
     {
-    case 1:
-        return std::make_shared<SimpleColourer>(g, params);
     case 2:
         return std::make_shared<UnitPropColourer>(g, params);
     case 3:
         return std::make_shared<ClassEnlargingUnitPropColourer>(g, params);
-    case 4:
-        return std::make_shared<VertexByVertexColourer>(g, params);
-    case 5:
-        return std::make_shared<VertexByVertexColourerUsingBitsets>(g, params);
-    case 6:
-        return std::make_shared<M1UnitPropColourer>(g, params);
-    case 7:
-        return std::make_shared<MinMaxM1UnitPropColourer>(g, params);
-    case 8:
-        return std::make_shared<SimpleColourerWithSuperSimplePreCheck>(g, params);
-    case 9:
-        return std::make_shared<SimpleColourerWordByWord>(g, params);
-    case 10:
-        return std::make_shared<HebrardKatsirelosColourer>(g, params);
     default:   // option 0
         return std::make_shared<EvenSimplerColourer>(g, params);
     }
