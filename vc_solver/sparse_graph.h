@@ -38,8 +38,15 @@ struct SparseGraph
     // vertex weights
     vector<long> weight;
 
-    SparseGraph(int n) : n(n), adjlist(n), weight(n, 1)
+    vector<bool> vertex_has_loop;
+
+    SparseGraph(int n) : n(n), adjlist(n), weight(n, 1), vertex_has_loop(n)
     {
+    }
+
+    auto add_loop(int v) -> void
+    {
+        vertex_has_loop[v] = true;
     }
 
     auto add_edge(int v, int w) -> void

@@ -14,8 +14,15 @@ auto deduplicate_and_add_edges(SparseGraph & g, vector<Edge> & edges)
     edges.erase(std::unique(edges.begin(), edges.end()), edges.end());
     printf("c %d edges after de-duplication\n", int(edges.size()));
 
-    for (Edge e : edges)
-        g.add_edge(e.first, e.second);
+    for (Edge e : edges) {
+        int v = e.first;
+        int w = e.second;
+        if (v == w) {
+            g.add_loop(v);
+        } else {
+            g.add_edge(v, w);
+        }
+    }
 
     g.sort_adj_lists();
 }
