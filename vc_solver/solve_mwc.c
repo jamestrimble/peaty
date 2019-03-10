@@ -4,7 +4,6 @@
 #include "sparse_graph.h"
 #include "util.h"
 #include "sequential_solver.h"
-#include "simple_mwc_solver.h"
 #include "params.h"
 
 #include <argp.h>
@@ -221,12 +220,7 @@ struct Result
 auto mwc(const SparseGraph & g, const Params & params) -> Result
 {
     Result result(g);
-
-    if (arguments.algorithm_num == 0)
-        sequential_mwc(g, params, result.clq, result.search_node_count);
-    else
-        simple_mwc(g, params, result.clq, result.search_node_count);
-
+    sequential_mwc(g, params, result.clq, result.search_node_count);
     return result;
 }
 

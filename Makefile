@@ -12,7 +12,6 @@ VC_HEADERS = \
              vc_solver/int_stack_without_dups.h \
              vc_solver/sparse_graph.h \
              vc_solver/sequential_solver.h \
-             vc_solver/simple_mwc_solver.h \
              vc_solver/colourer.h \
              vc_solver/root_node_processing.h \
              vc_solver/params.h
@@ -22,7 +21,6 @@ VC_C_FILES = \
              vc_solver/sparse_graph.c \
              vc_solver/solve_mwc.c \
              vc_solver/sequential_solver.c \
-             vc_solver/simple_mwc_solver.c \
              vc_solver/colourer.c \
              vc_solver/root_node_processing.c
 
