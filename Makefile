@@ -29,7 +29,7 @@ VC_C_FILES = \
 all: simple-graph-colourer/graph_colour vc_solver/solve_vc
 
 vc_solver/solve_vc: $(VC_C_FILES) $(VC_HEADERS)
-	g++ -O3 $(CPPFLAGS) -std=c++14 -o vc_solver/solve_vc -DNDEBUG $(VC_C_FILES)
+	g++ -O3 -march=native $(CPPFLAGS) -std=c++14 -o vc_solver/solve_vc -DNDEBUG $(VC_C_FILES)
 
 simple-graph-colourer/graph_colour: $(GC_C_FILES) $(GC_HEADERS)
 	gcc -O3 -march=native -Wall -std=c11 -Wno-unused-function -o simple-graph-colourer/graph_colour $(GC_C_FILES) -lm
