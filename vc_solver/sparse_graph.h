@@ -200,10 +200,10 @@ struct SparseGraph
     }
 };
 
-SparseGraph readSparseGraph(char* filename);
+SparseGraph readSparseGraph();
 
-SparseGraph readSparseGraphPaceFormat(char* filename);
+SparseGraph readSparseGraphPaceFormat();
 
-SparseGraph fastReadSparseGraphPaceFormat(char* filename);
+SparseGraph fastReadSparseGraphPaceFormat();
 
 #endif

@@ -27,7 +27,7 @@ auto deduplicate_and_add_edges(SparseGraph & g, vector<Edge> & edges)
     g.sort_adj_lists();
 }
 
-SparseGraph readSparseGraph(char* filename) {
+SparseGraph readSparseGraph() {
     int medges = 0;
     int edges_read = 0;
 
@@ -81,7 +81,7 @@ SparseGraph readSparseGraph(char* filename) {
     return g;
 }
 
-SparseGraph readSparseGraphPaceFormat(char* filename) {
+SparseGraph readSparseGraphPaceFormat() {
     int medges = 0;
     int edges_read = 0;
 
@@ -212,7 +212,7 @@ public:
     }
 };
 
-SparseGraph fastReadSparseGraphPaceFormat(char* filename) {
+SparseGraph fastReadSparseGraphPaceFormat() {
     int medges = 0;
     int edges_read = 0;
 

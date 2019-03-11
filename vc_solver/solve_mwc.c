@@ -34,7 +34,7 @@ using std::chrono::duration_cast;
 using std::chrono::milliseconds;
 
 static char doc[] = "Find a maximum clique in a graph in DIMACS format";
-static char args_doc[] = "FILENAME";
+static char args_doc[] = "";
 static struct argp_option options[] = {
     {"quiet", 'q', 0, 0, "Quiet output"},
     {"unweighted-sort", 'u', 0, 0, "Unweighted ordering (only applies to certain algorithms)"},
@@ -64,8 +64,6 @@ static struct {
     int max_sat_level;
     int num_threads;
     FileFormat file_format;
-    char *filename;
-    int arg_num;
 } arguments;
 
 void set_default_arguments()
@@ -106,14 +104,9 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state)
                 arguments.file_format = FileFormat::Pace;
             break;
         case ARGP_KEY_ARG:
-            if (arguments.arg_num >= 1)
-                argp_usage(state);
-            arguments.filename = arg;
-            arguments.arg_num++;
+            argp_usage(state);
             break;
         case ARGP_KEY_END:
-            if (arguments.arg_num == 0)
-                argp_usage(state);
             break;
         default: return ARGP_ERR_UNKNOWN;
     }
@@ -370,14 +363,14 @@ auto mwc(const SparseGraph & g_, const Params & params) -> Result
 
     vector<vector<int>> components = make_list_of_components(g);
 
-    for (auto & component : components) {
-        std::cout << "A_COMPONENT";
-        for (int v : component) {
-            std::cout << " " << v;
-        }
-        std::cout << std::endl;
-    }
-    std::cout << "END_COMPONENTS" << std::endl;
+//    for (auto & component : components) {
+//        std::cout << "A_COMPONENT";
+//        for (int v : component) {
+//            std::cout << " " << v;
+//        }
+//        std::cout << std::endl;
+//    }
+//    std::cout << "END_COMPONENTS" << std::endl;
 
     Result result(g);
     for (auto & component : components) {
@@ -414,8 +407,8 @@ int main(int argc, char** argv) {
         arguments.num_threads = 1;
 
     const SparseGraph g =
-            arguments.file_format==FileFormat::Pace ? fastReadSparseGraphPaceFormat(arguments.filename) :
-                                                      readSparseGraph(arguments.filename);
+            arguments.file_format==FileFormat::Pace ? fastReadSparseGraphPaceFormat() :
+                                                      readSparseGraph();
 
     Params params {arguments.colouring_variant, arguments.max_sat_level, arguments.algorithm_num,
             arguments.num_threads, arguments.quiet, arguments.unweighted_sort, arguments.ind_set_upper_bound};
@@ -425,35 +418,29 @@ int main(int argc, char** argv) {
 
     auto elapsed_msec = duration_cast<milliseconds>(steady_clock::now() - params.start_time).count();
 
-    if (aborted) {
-        printf("TIMEOUT\n");
-        elapsed_msec = arguments.time_limit * 1000;
-    }
+//    if (aborted) {
+//        printf("TIMEOUT\n");
+//        elapsed_msec = arguments.time_limit * 1000;
+//    }
 
     // sort vertices in clique by index
     std::sort(result.vertex_cover.vv.begin(), result.vertex_cover.vv.end());
 
-    printf("VertexCover ");
+    std::cout << "s vc " << g.n << " " << result.vertex_cover.vv.size() << std::endl;
     for (int v : result.vertex_cover.vv)
-        printf("%d ", v);
-    printf("\n");
+        std::cout << (v+1) << std::endl;
 
-    printf("Stats: status filename program algorithm_number max_sat_level num_threads size weight time_ms nodes\n");
-    std::string fname(arguments.filename);
-    auto last_slash = fname.find_last_of("/");
-    if (last_slash < fname.size())
-        fname = fname.substr(last_slash + 1, fname.size());
-    std::cout <<
-            (aborted ? "TIMEOUT" : "COMPLETED") << " " <<
-            fname << " " <<
-            argv[0] << " " <<
-            arguments.algorithm_num << " " <<
-            arguments.max_sat_level << " " <<
-            arguments.num_threads << " " <<
-            result.vertex_cover.vv.size() << " " <<
-            result.vertex_cover.total_wt <<  " " <<
-            elapsed_msec << " " <<
-            result.search_node_count << std::endl;
+//    printf("Stats: status program algorithm_number max_sat_level num_threads size weight time_ms nodes\n");
+//    std::cout <<
+//            (aborted ? "TIMEOUT" : "COMPLETED") << " " <<
+//            argv[0] << " " <<
+//            arguments.algorithm_num << " " <<
+//            arguments.max_sat_level << " " <<
+//            arguments.num_threads << " " <<
+//            result.vertex_cover.vv.size() << " " <<
+//            result.vertex_cover.total_wt <<  " " <<
+//            elapsed_msec << " " <<
+//            result.search_node_count << std::endl;
 
     if (!check_vertex_cover(g, result.vertex_cover.vv))
         fail("*** Error: invalid solution\n");
