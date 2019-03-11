@@ -355,30 +355,13 @@ std::vector<int> randomised_vertex_order(const Graph & g, unsigned seed)
 {
     srand(seed);
 
-    std::vector<int> shuffled_ints;
+    std::vector<int> vv;
     for (int i=0; i<g.n; i++)
-        shuffled_ints.push_back(i);
+        vv.push_back(i);
     for (int i=g.n-1; i>=1; i--) {
         int r = rand() % (i+1);
-        std::swap(shuffled_ints[i], shuffled_ints[r]);
+        std::swap(vv[i], vv[r]);
     }
-
-    std::vector<int> vv;
-
-    std::vector<int> degree(g.n);
-    for (int v=0; v<g.n; v++) {
-        for (int w=v+1; w<g.n; w++) {
-            if (g.adj_matrix[v][w]) {
-                ++degree[v];
-                ++degree[w];
-            }
-        }
-    }
-
-    for (int deg=0; deg<g.n; deg++)
-        for (int v : shuffled_ints)
-            if (degree[v] == deg)
-                vv.push_back(v);
 
     return vv;
 }
