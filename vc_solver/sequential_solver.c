@@ -14,8 +14,8 @@ auto update_incumbent_if_necessary(VtxList & C, VtxList & incumbent, const Param
 {
     if (C.total_wt > incumbent.total_wt) {
         incumbent = C;
-        if (!params.quiet)
-            printf("New incumbent of weight %ld\n", incumbent.total_wt);
+//        if (!params.quiet)
+//            printf("New incumbent of weight %ld\n", incumbent.total_wt);
     }
 }
 
@@ -87,7 +87,7 @@ auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumb
     VtxList C(g.n);
 
     auto vv0 = initialise(g, incumbent);
-    printf("Initial incumbent weight %ld\n", incumbent.total_wt);
+//    printf("Initial incumbent weight %ld\n", incumbent.total_wt);
     remove_vertices_with_closed_nd_wt_leq_incumbent(g, vv0, 0, incumbent.total_wt, 1);
     SparseGraph ordered_graph = g.induced_subgraph<SparseGraph>(vv0);
     ordered_graph.sort_adj_lists();

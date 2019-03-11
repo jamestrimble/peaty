@@ -57,20 +57,14 @@ enum class FileFormat
 static struct {
     bool quiet;
     bool unweighted_sort;
-    int colouring_variant;
+    int colouring_variant = 3;
     int ind_set_upper_bound;
     int time_limit;
     int algorithm_num;
-    int max_sat_level;
-    int num_threads;
-    FileFormat file_format;
+    int max_sat_level = -1;
+    int num_threads = 1;
+    FileFormat file_format = FileFormat::Pace;
 } arguments;
-
-void set_default_arguments()
-{
-    arguments.file_format = FileFormat::Dimacs;
-    arguments.num_threads = 1;
-}
 
 static error_t parse_opt (int key, char *arg, struct argp_state *state)
 {
@@ -104,7 +98,7 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state)
                 arguments.file_format = FileFormat::Pace;
             break;
         case ARGP_KEY_ARG:
-            argp_usage(state);
+//            argp_usage(state);
             break;
         case ARGP_KEY_END:
             break;
@@ -400,7 +394,6 @@ auto mwc(const SparseGraph & g_, const Params & params) -> Result
 }
 
 int main(int argc, char** argv) {
-    set_default_arguments();
     argp_parse(&argp, argc, argv, 0, 0, 0);
 
     if (arguments.algorithm_num != 5)

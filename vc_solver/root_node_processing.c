@@ -8,7 +8,7 @@
 #include <vector>
 
 vector<int> initialise(const SparseGraph & g, VtxList & incumbent) {
-    printf("Starting init\n");
+//    printf("Starting init\n");
     vector<int> vv;
 
     if (!g.n)
@@ -34,7 +34,7 @@ vector<int> initialise(const SparseGraph & g, VtxList & incumbent) {
         ll_prev[ll_next[i]] = i;
         list_head[deg] = i;
     }
-    printf("Made lists\n");
+//    printf("Made lists\n");
 
     unsigned list_idx = g.n - 1;
 
