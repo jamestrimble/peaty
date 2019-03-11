@@ -387,7 +387,7 @@ int find_colouring_number(const Graph & g, int f)
             if (expand_call_count < expand_call_limit)
                 break;
             clq.size = 0;
-            expand_call_limit = expand_call_limit + expand_call_limit / 2;
+            expand_call_limit = expand_call_limit + expand_call_limit / 10;
             expand_call_count = 0;
             ++rng_seed;
             vv = randomised_vertex_order(g, rng_seed);
