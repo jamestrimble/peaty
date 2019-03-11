@@ -1,3 +1,5 @@
+#include <vector>
+
 struct Graph {
     int n;
     int *degree;
@@ -10,7 +12,7 @@ void remove_edge(struct Graph *g, int v, int w);
 
 void add_edge(struct Graph *g, int v, int w);
 
-struct Graph *induced_subgraph(struct Graph *g, int *vv, int vv_len);
+struct Graph *induced_subgraph(struct Graph *g, std::vector<int> & vv);
 
 struct Graph *new_graph(int n);
 

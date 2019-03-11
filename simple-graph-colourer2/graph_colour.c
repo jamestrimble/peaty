@@ -1,8 +1,11 @@
-#define _GNU_SOURCE
 #define _POSIX_SOURCE
 
 #include "c_program_timing.h"
 #include "graph_colour_solver.h"
+
+#include <iostream>
+#include <string>
+#include <vector>
 
 #include <argp.h>
 #include <stdbool.h>
@@ -10,8 +13,8 @@
 #include <stdlib.h>
 #include <time.h>
 
-void fail(char* msg) {
-    fprintf(stderr, "%s\n", msg);
+void fail(const std::string & msg) {
+    std::cerr << msg << std::endl;
     exit(1);
 }
 
@@ -128,30 +131,22 @@ int main(int argc, char** argv)
 
     struct Graph* input_g_unsorted = readGraph(arguments.filename, arguments.fractional_level);
 
-    int *shuffled_ints = malloc(input_g_unsorted->n * sizeof *shuffled_ints);
+    std::vector<int> shuffled_ints;
     for (int i=0; i<input_g_unsorted->n; i++)
-        shuffled_ints[i] = i;
+        shuffled_ints.push_back(i);
     srand(arguments.rng_seed);
     for (int i=input_g_unsorted->n-1; i>=1; i--) {
         int r = rand() % (i+1);
-        int tmp = shuffled_ints[i];
-        shuffled_ints[i] = shuffled_ints[r];
-        shuffled_ints[r] = tmp;
+        std::swap(shuffled_ints[i], shuffled_ints[r]);
     }
-    
 
-    int *vv = malloc(input_g_unsorted->n * sizeof *vv);
-    int vv_len = 0;
+    std::vector<int> vv;
 
-    for (int deg=input_g_unsorted->n; deg>=0; deg--) {
-        for (int i=0; i<input_g_unsorted->n; i++) {
-            int v = shuffled_ints[i];
-            if (input_g_unsorted->degree[v] == deg) {
-                vv[vv_len++] = v;
-            }
-        }
-    }
-    struct Graph* input_g = induced_subgraph(input_g_unsorted, vv, input_g_unsorted->n);
+    for (int deg=input_g_unsorted->n; deg>=0; deg--)
+        for (int v : shuffled_ints)
+            if (input_g_unsorted->degree[v] == deg)
+                vv.push_back(v);
+    struct Graph* input_g = induced_subgraph(input_g_unsorted, vv);
 
     set_start_time();
     set_time_limit_ms(arguments.time_limit);
@@ -195,7 +190,6 @@ int main(int argc, char** argv)
         if (clq.size == input_g->n * arguments.fractional_level)
             break;
     }
-    free(vv);
     free_graph(input_g);
     free_graph(input_g_unsorted);
 }

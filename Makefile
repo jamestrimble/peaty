@@ -39,7 +39,7 @@ simple-graph-colourer/graph_colour: $(GC_C_FILES) $(GC_HEADERS)
 	gcc -O3 -march=native -Wall -std=c11 -Wno-unused-function -o simple-graph-colourer/graph_colour $(GC_C_FILES) -lm
 
 simple-graph-colourer2/graph_colour: $(GC2_C_FILES) $(GC2_HEADERS)
-	gcc -O3 -march=native -Wall -std=c11 -Wno-unused-function -o simple-graph-colourer2/graph_colour $(GC2_C_FILES) -lm
+	g++ -O3 -march=native $(CPPFLAGS) -std=c++14 -Wall -Wno-unused-function -o simple-graph-colourer2/graph_colour $(GC2_C_FILES) -lm
 
 test:
 	./test-script
