@@ -125,22 +125,25 @@ static struct argp argp = { options, parse_opt, args_doc, doc };
 /******************************************************************************/
 
 // Checks if a set of vertices induces a clique
-bool check_indset(const SparseGraph & g, const VtxList & clq) {
-    long total_wt = 0;
-    for (unsigned i=0; i<clq.vv.size(); i++)
-        total_wt += g.weight[clq.vv[i]];
-    if (total_wt != clq.total_wt)
-        return false;
-
-    for (unsigned i=0; i<clq.vv.size(); i++) {
-        int v = clq.vv[i];
-        for (unsigned j=i+1; j<clq.vv.size(); j++) {
-            int w = clq.vv[j];
-            if (v == w) {
-                return false;
-            }
-            if (std::find(g.adjlist[v].begin(), g.adjlist[v].end(), w) != g.adjlist[v].end()) {
-                return false;
+bool check_vertex_cover(const SparseGraph & g, const vector<int> & vc) {
+    // TODO: make sure the graph passed in here isn't modified from the original
+    vector<bool> in_vc(g.n);
+    for (int v : vc) {
+        in_vc[v] = true;
+    }
+    for (unsigned i=0; i<g.n; i++) {
+        if (g.vertex_has_loop[i] && !in_vc[i]) {
+            std::cerr << "Vertex " << i << " has a loop but is not in the vertex cover!" << std::endl;
+            return false;
+        }
+    }
+    for (unsigned i=0; i<g.n; i++) {
+        if (!in_vc[i]) {
+            for (unsigned v : g.adjlist[i]) {
+                if (!in_vc[v]) {
+                    std::cerr << "Edge " << i << "," << v << " is uncovered!" << std::endl;
+                    return false;
+                }
             }
         }
     }
@@ -212,9 +215,9 @@ auto run_this(Result_ func(const Data_ &, const Params_ &)) -> function<Result_ 
 
 struct Result
 {
-    VtxList clq;
+    VtxList vertex_cover;
     long search_node_count;
-    Result(const SparseGraph & g) : clq(g.n), search_node_count(0) {}
+    Result(const SparseGraph & g) : vertex_cover(g.n), search_node_count(0) {}
 };
 
 // a list of tuples (v, w, x), where v is the vertex of deg 2,
@@ -327,6 +330,27 @@ auto make_list_of_components(const SparseGraph & g) -> vector<vector<int>>
     return components;
 }
 
+auto find_vertex_cover_of_subgraph(const SparseGraph & g, vector<int> component,
+        const Params & params) -> vector<int>
+{
+    std::sort(component.begin(), component.end());
+    SparseGraph subgraph = g.induced_subgraph<SparseGraph>(component);
+    VtxList independent_set(g.n);
+    long search_node_count = 0;
+    sequential_mwc(subgraph, params, independent_set, search_node_count);
+    vector<bool> vtx_is_in_ind_set(subgraph.n);
+    for (int v : independent_set.vv) {
+        vtx_is_in_ind_set[v] = true;
+    }
+    vector<int> vertex_cover;
+    for (unsigned i=0; i<component.size(); i++) {
+        if (!vtx_is_in_ind_set[i]) {
+            vertex_cover.push_back(component[i]);
+        }
+    }
+    return vertex_cover;
+}
+
 auto mwc(const SparseGraph & g_, const Params & params) -> Result
 {
     // TODO: get rid of const_cast after removing run_this
@@ -355,9 +379,30 @@ auto mwc(const SparseGraph & g_, const Params & params) -> Result
     }
     std::cout << "END_COMPONENTS" << std::endl;
 
-    exit(0);
     Result result(g);
-    sequential_mwc(g, params, result.clq, result.search_node_count);
+    for (auto & component : components) {
+        auto vertex_cover_of_subgraph = find_vertex_cover_of_subgraph(g, component, params);
+        for (int v : vertex_cover_of_subgraph) {
+            in_cover[v] = true;
+        }
+    }
+
+    while (!deg_2_reductions.empty()) {
+        auto r = deg_2_reductions.back();
+        deg_2_reductions.pop_back();
+        if (in_cover[r.w]) {
+            in_cover[r.x] = true;
+        } else {
+            in_cover[r.v] = true;
+        }
+    }
+//    sequential_mwc(g, params, result.clq, result.search_node_count);
+    for (unsigned v=0; v<g.n; v++) {
+        if (in_cover[v]) {
+            result.vertex_cover.push_vtx(v, 1);
+        }
+    }
+
     return result;
 }
 
@@ -386,15 +431,11 @@ int main(int argc, char** argv) {
     }
 
     // sort vertices in clique by index
-    std::sort(result.clq.vv.begin(), result.clq.vv.end());
+    std::sort(result.vertex_cover.vv.begin(), result.vertex_cover.vv.end());
 
-    std::vector<bool> in_clq(g.n);
-    for (unsigned i=0; i<result.clq.vv.size(); i++)
-        in_clq[result.clq.vv[i]] = true;
     printf("VertexCover ");
-    for (unsigned i=0; i<g.n; i++)
-        if (!in_clq[i])
-            printf("%d ", i);
+    for (int v : result.vertex_cover.vv)
+        printf("%d ", v);
     printf("\n");
 
     printf("Stats: status filename program algorithm_number max_sat_level num_threads size weight time_ms nodes\n");
@@ -409,11 +450,11 @@ int main(int argc, char** argv) {
             arguments.algorithm_num << " " <<
             arguments.max_sat_level << " " <<
             arguments.num_threads << " " <<
-            result.clq.vv.size() << " " <<
-            result.clq.total_wt <<  " " <<
+            result.vertex_cover.vv.size() << " " <<
+            result.vertex_cover.total_wt <<  " " <<
             elapsed_msec << " " <<
             result.search_node_count << std::endl;
 
-    if (!check_indset(g, result.clq))
-        fail("*** Error: the set of vertices found do not induce a clique of the expected weight\n");
+    if (!check_vertex_cover(g, result.vertex_cover.vv))
+        fail("*** Error: invalid solution\n");
 }
