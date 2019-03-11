@@ -204,4 +204,6 @@ SparseGraph readSparseGraph(char* filename);
 
 SparseGraph readSparseGraphPaceFormat(char* filename);
 
+SparseGraph fastReadSparseGraphPaceFormat(char* filename);
+
 #endif

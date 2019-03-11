@@ -369,7 +369,7 @@ int main(int argc, char** argv) {
         arguments.num_threads = 1;
 
     const SparseGraph g =
-            arguments.file_format==FileFormat::Pace ? readSparseGraphPaceFormat(arguments.filename) :
+            arguments.file_format==FileFormat::Pace ? fastReadSparseGraphPaceFormat(arguments.filename) :
                                                       readSparseGraph(arguments.filename);
 
     Params params {arguments.colouring_variant, arguments.max_sat_level, arguments.algorithm_num,
