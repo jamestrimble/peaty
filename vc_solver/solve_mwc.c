@@ -217,8 +217,145 @@ struct Result
     Result(const SparseGraph & g) : clq(g.n), search_node_count(0) {}
 };
 
-auto mwc(const SparseGraph & g, const Params & params) -> Result
+// a list of tuples (v, w, x), where v is the vertex of deg 2,
+// w is the kept neighbour and x is the removed neighbour
+struct Deg2Reduction
 {
+    int v;
+    int w;
+    int x;
+};
+
+bool isolated_vertex_removal(SparseGraph & g,
+        vector<bool> & in_cover, vector<bool> & deleted)
+{
+    bool made_a_change = false;
+    vector<int> neighbours;
+    for (unsigned v=0; v<g.n; v++) {
+        if (!deleted[v]) {
+            neighbours.clear();
+            for (int w : g.adjlist[v])
+                if (!deleted[w])
+                    neighbours.push_back(w);
+            if (g.vv_are_clique(neighbours)) {
+                deleted[v] = true;
+                made_a_change = true;
+                for (int w : neighbours) {
+                    deleted[w] = true;
+                    in_cover[w] = true;
+                    for (int u : g.adjlist[w]) {
+                        auto & lst = g.adjlist[u];
+                        lst.erase(std::find(lst.begin(), lst.end(), w));
+                    }
+                    g.adjlist[w].clear();
+                }
+            }
+        }
+    }
+    return made_a_change;
+}
+
+// Remove w from the adjacency list of v.
+// It is the caller's responsibility to ensure that v gets removed
+// from the adjacency list of w.
+auto remove_from_adj_list(SparseGraph & g, int v, int w)
+{
+    auto & lst = g.adjlist[v];
+    lst.erase(std::find(lst.begin(), lst.end(), w));
+}
+
+bool vertex_folding(SparseGraph & g,
+        vector<bool> & in_cover, vector<bool> & deleted,
+        vector<Deg2Reduction> & deg_2_reductions)
+{
+    bool made_a_change = false;
+
+    for (unsigned v=0; v<g.n; v++) {
+        if (g.adjlist[v].size() == 2) {
+            int w = g.adjlist[v][0];
+            int x = g.adjlist[v][1];
+
+            // for this reduction, w and x must not be adjacent
+            if (!g.has_edge(x, w)) {
+                remove_from_adj_list(g, w, v);
+                remove_from_adj_list(g, x, v);
+                for (int u : g.adjlist[x]) {
+                    remove_from_adj_list(g, u, x);
+                    if (!g.has_edge(u, w))
+                        g.add_edge(w, u);
+                }
+                g.adjlist[v].clear();
+                g.adjlist[x].clear();
+                deleted[v] = true;
+                deleted[x] = true;
+                deg_2_reductions.push_back({int(v), w, x});
+                made_a_change = true;
+            }
+        }
+    }
+    return made_a_change;
+}
+
+auto make_list_of_components(const SparseGraph & g) -> vector<vector<int>>
+{
+    vector<vector<int>> components;
+    vector<bool> vertex_used(g.n);
+    for (unsigned i=0; i<g.n; i++)
+        if (g.adjlist[i].empty())
+            vertex_used[i] = true;
+
+    for (unsigned i=0; i<g.n; i++) {
+        if (!vertex_used[i]) {
+            components.push_back({int(i)});
+            auto & component = components.back();
+            vector<int> to_explore = {int(i)};
+            vertex_used[i] = true;
+            while (!to_explore.empty()) {
+                int v = to_explore.back();
+                to_explore.pop_back();
+                for (int w : g.adjlist[v]) {
+                    if (!vertex_used[w]) {
+                        component.push_back(w);
+                        to_explore.push_back(w);
+                        vertex_used[w] = true;
+                    }
+                }
+            }
+        }
+    }
+
+    return components;
+}
+
+auto mwc(const SparseGraph & g_, const Params & params) -> Result
+{
+    // TODO: get rid of const_cast after removing run_this
+    SparseGraph & g = const_cast<SparseGraph &>(g_);
+    vector<bool> deleted = g.vertex_has_loop;
+    vector<bool> in_cover = g.vertex_has_loop;
+    g.remove_edges_incident_to_loopy_vertices();
+
+    vector<Deg2Reduction> deg_2_reductions;
+
+    while (true) {
+        bool a = isolated_vertex_removal(g, in_cover, deleted);
+        bool b = vertex_folding(g, in_cover, deleted, deg_2_reductions);
+        if (!a && !b)
+            break;
+    };
+
+    vector<vector<int>> components = make_list_of_components(g);
+
+    for (auto & component : components) {
+        std::cout << "A_COMPONENT";
+        for (int v : component) {
+            std::cout << " " << v;
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "END_COMPONENTS" << std::endl;
+
+    exit(0);
     Result result(g);
     sequential_mwc(g, params, result.clq, result.search_node_count);
     return result;

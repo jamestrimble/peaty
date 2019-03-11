@@ -107,7 +107,7 @@ SparseGraph readSparseGraphPaceFormat(char* filename) {
                     fail("Error reading a line beginning with e.\n");
                 if (v < w)
                     edges.push_back({v-1, w-1});
-                else if (v > w)
+                else
                     edges.push_back({w-1, v-1});
                 edges_read++;
             } else if (token == "p") {

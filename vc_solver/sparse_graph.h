@@ -55,6 +55,47 @@ struct SparseGraph
         adjlist[w].push_back(v);
     }
 
+    auto has_edge(int v, int w) const -> bool
+    {
+        if (adjlist[w].size() < adjlist[v].size()) {
+            // for speed, look in the smaller adjacency list
+            std::swap(v, w);
+        }
+        auto & v_adj_lst = adjlist[v];
+        return std::find(v_adj_lst.begin(), v_adj_lst.end(), w) != v_adj_lst.end();
+    }
+
+    auto vv_are_clique(const vector<int> & vv) const -> bool
+    {
+        for (unsigned i=0; i<vv.size(); i++) {
+            int v = vv[i];
+            auto & v_adj_lst = adjlist[v];
+            for (unsigned j=i+1; j<vv.size(); j++) {
+                int w = vv[j];
+                if (std::find(v_adj_lst.begin(), v_adj_lst.end(), w) == v_adj_lst.end()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    auto remove_edges_incident_to_loopy_vertices() -> void
+    {
+        for (unsigned i=0; i<n; i++) {
+            if (vertex_has_loop[i]) {
+                adjlist[i].clear();
+            } else {
+                auto & lst = adjlist[i];
+                lst.erase(std::remove_if(
+                            lst.begin(),
+                            lst.end(),
+                            [this](int v){return vertex_has_loop[v];}),
+                        lst.end());
+            }
+        }
+    }
+
     auto sort_adj_lists() -> void
     {
         for (auto & list : adjlist)
