@@ -14,60 +14,24 @@
 //                                GRAPH STUFF                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void add_edge(struct Graph *g, int v, int w) {
-    if (!g->adj_matrix[v][w]) {
-        g->adj_matrix[v][w] = true;
-        g->adj_matrix[w][v] = true;
-        ++g->degree[v];
-        ++g->degree[w];
+void add_edge(struct Graph & g, int v, int w) {
+    if (!g.adj_matrix[v][w]) {
+        g.adj_matrix[v][w] = true;
+        g.adj_matrix[w][v] = true;
     }
-}
-
-struct Graph *new_graph(int n)
-{
-    struct Graph *g = (struct Graph *) calloc(1, sizeof(*g));
-    g->n = n;
-    g->degree = (int *) calloc(n, sizeof(*g->degree));
-    g->adj_matrix = (bool **) calloc(n, sizeof(*g->adj_matrix));
-    for (int i=0; i<n; i++) {
-        g->adj_matrix[i] = (bool *) calloc(n, sizeof *g->adj_matrix[i]);
-    }
-
-    return g;
-}
-
-void free_graph(struct Graph *g)
-{
-    for (int i=0; i<g->n; i++)
-        free(g->adj_matrix[i]);
-    free(g->degree);
-    free(g->adj_matrix);
-    free(g);
 }
 
 void make_adjacency_lists(struct Graph *g)
 {
-    g->adjlist_len = (int *) calloc(g->n, sizeof(*g->adjlist_len));
-    g->adjlist = (int **) malloc(g->n * sizeof(*g->adjlist));
-    for (int i=0; i<g->n; i++) {
-        g->adjlist[i] = (int *) malloc(g->degree[i] * sizeof *g->adjlist[i]);
+    for (int i=0; i<g->n; i++)
         for (int j=0; j<g->n; j++)
             if (g->adj_matrix[i][j])
-                g->adjlist[i][g->adjlist_len[i]++] = j;
-    }
+                g->adjlist[i].push_back(j);
 }
 
-void free_adjacency_lists(struct Graph *g)
-{
-    free(g->adjlist_len);
-    for (int i=0; i<g->n; i++)
-        free(g->adjlist[i]);
-    free(g->adjlist);
-}
-
-struct Graph *induced_subgraph(struct Graph *g, std::vector<int> & vv) {
-    struct Graph* subg = new_graph(vv.size());
-    for (int i=0; i<subg->n; i++)
+struct Graph induced_subgraph(struct Graph *g, std::vector<int> & vv) {
+    struct Graph subg(vv.size());
+    for (int i=0; i<subg.n; i++)
         for (int j=0; j<i; j++)
             if (g->adj_matrix[vv[i]][vv[j]])
                 add_edge(subg, i, j);
@@ -282,9 +246,9 @@ void expand(struct Graph *original_g, struct Solution *C,
         if (num_colours_assigned_to_vertex[orig_v] != f)
             unit_orig_v_stack.push_back(orig_v);
 
-        int i=0;
+        unsigned i=0;
         for (int orig_w=0; orig_w<original_g->n; orig_w++) {
-            if (i < original_g->adjlist_len[orig_v] && original_g->adjlist[orig_v][i] == orig_w) {
+            if (i < original_g->adjlist[orig_v].size() && original_g->adjlist[orig_v][i] == orig_w) {
                 ++i;
                 continue;
             } else if (orig_w == orig_v) {
@@ -332,9 +296,9 @@ void expand(struct Graph *original_g, struct Solution *C,
         for (int i=0; i<original_g->n * domain_num_words; i++)
             new_available_classes_bitset[i] = available_classes_bitset[i];
 
-        int i=0;
+        unsigned i=0;
         for (int orig_w=0; orig_w<original_g->n; orig_w++) {
-            if (i < original_g->adjlist_len[best_orig_v] && original_g->adjlist[best_orig_v][i] == orig_w) {
+            if (i < original_g->adjlist[best_orig_v].size() && original_g->adjlist[best_orig_v][i] == orig_w) {
                 ++i;
                 continue;
             } else if (orig_w == best_orig_v) {
@@ -376,6 +340,7 @@ void solve(struct Graph *original_g, long *expand_call_count,
     destroy_Solution(&C);
 }
 
+// FIXME
 bool is_solution_valid(struct Graph *original_g, struct Solution *solution,
         int num_colours)
 {

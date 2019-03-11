@@ -80,7 +80,7 @@ static struct argp argp = { options, parse_opt, args_doc, doc };
 
 /******************************************************************************/
 
-struct Graph *readGraph(char* filename, int fractional_level)
+struct Graph readGraph(char* filename, int fractional_level)
 {
     char* line = NULL;
     size_t nchar = 0;
@@ -90,7 +90,7 @@ struct Graph *readGraph(char* filename, int fractional_level)
     int v, w;
     int edges_read = 0;
 
-    struct Graph *g = NULL;
+    struct Graph g(0);
 
     while (getline(&line, &nchar, stdin) != -1) {
         if (nchar > 0) {
@@ -100,7 +100,7 @@ struct Graph *readGraph(char* filename, int fractional_level)
                     fail("Error reading a line beginning with p.\n");
                 printf("%d vertices\n", nvertices);
                 printf("%d edges\n", medges);
-                g = new_graph(nvertices);
+                g = Graph(nvertices);
                 break;
             case 'e':
                 if (sscanf(line, "e %d %d", &v, &w)!=2)
@@ -124,36 +124,45 @@ int main(int argc, char** argv)
     set_default_arguments();
     argp_parse(&argp, argc, argv, 0, 0, 0);
 
-    struct Graph* input_g_unsorted = readGraph(arguments.filename, arguments.fractional_level);
+    struct Graph input_g_unsorted = readGraph(arguments.filename, arguments.fractional_level);
 
     std::vector<int> shuffled_ints;
-    for (int i=0; i<input_g_unsorted->n; i++)
+    for (int i=0; i<input_g_unsorted.n; i++)
         shuffled_ints.push_back(i);
     srand(arguments.rng_seed);
-    for (int i=input_g_unsorted->n-1; i>=1; i--) {
+    for (int i=input_g_unsorted.n-1; i>=1; i--) {
         int r = rand() % (i+1);
         std::swap(shuffled_ints[i], shuffled_ints[r]);
     }
 
     std::vector<int> vv;
 
-    for (int deg=0; deg<input_g_unsorted->n; deg++)
+    std::vector<int> degree(input_g_unsorted.n);
+    for (int v=0; v<input_g_unsorted.n; v++) {
+        for (int w=v+1; w<input_g_unsorted.n; w++) {
+            if (input_g_unsorted.adj_matrix[v][w]) {
+                ++degree[v];
+                ++degree[w];
+            }
+        }
+    }
+
+    for (int deg=0; deg<input_g_unsorted.n; deg++)
         for (int v : shuffled_ints)
-            if (input_g_unsorted->degree[v] == deg)
+            if (degree[v] == deg)
                 vv.push_back(v);
-    struct Graph* input_g = induced_subgraph(input_g_unsorted, vv);
+    struct Graph input_g = induced_subgraph(&input_g_unsorted, vv);
 
     set_start_time();
     set_time_limit_ms(arguments.time_limit);
 
     for (int num_colours=0; ; num_colours++) {
         struct Solution clq;
-        init_Solution(&clq, input_g->n);
+        init_Solution(&clq, input_g.n);
 
         long expand_call_count = 0;
-        make_adjacency_lists(input_g);
-        solve(input_g, &expand_call_count, arguments.quiet, &clq, num_colours, arguments.fractional_level);
-        free_adjacency_lists(input_g);
+        make_adjacency_lists(&input_g);
+        solve(&input_g, &expand_call_count, arguments.quiet, &clq, num_colours, arguments.fractional_level);
         long elapsed_msec = get_elapsed_time_msec();
         if (is_timeout_flag_set()) {
             elapsed_msec = arguments.time_limit * 1000;
@@ -178,13 +187,11 @@ int main(int argc, char** argv)
 //            printf("\n");
 //        }
 
-        printf("%d %ld %s\n", num_colours, expand_call_count, clq.size == input_g->n * arguments.fractional_level ? "SATISFIABLE" : "UNSAT");
+        printf("%d %ld %s\n", num_colours, expand_call_count, clq.size == input_g.n * arguments.fractional_level ? "SATISFIABLE" : "UNSAT");
 
         destroy_Solution(&clq);
 
-        if (clq.size == input_g->n * arguments.fractional_level)
+        if (clq.size == input_g.n * arguments.fractional_level)
             break;
     }
-    free_graph(input_g);
-    free_graph(input_g_unsorted);
 }

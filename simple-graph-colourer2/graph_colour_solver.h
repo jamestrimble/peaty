@@ -2,24 +2,18 @@
 
 struct Graph {
     int n;
-    int *degree;
-    bool **adj_matrix;
-    int *adjlist_len;
-    int **adjlist;
+    std::vector<std::vector<bool>> adj_matrix;
+    std::vector<std::vector<int>> adjlist;
+
+    Graph(int n) : n(n), adj_matrix(n, std::vector<bool>(n)), adjlist(n) {
+    }
 };
 
-void add_edge(struct Graph *g, int v, int w);
+void add_edge(struct Graph & g, int v, int w);
 
-struct Graph *induced_subgraph(struct Graph *g, std::vector<int> & vv);
-
-struct Graph *new_graph(int n);
-
-void free_graph(struct Graph *g);
+struct Graph induced_subgraph(struct Graph *g, std::vector<int> & vv);
 
 void make_adjacency_lists(struct Graph *g);
-
-void free_adjacency_lists(struct Graph *g);
-
 
 
 struct Solution {
