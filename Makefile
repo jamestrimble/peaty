@@ -4,11 +4,9 @@ GC_C_FILES = simple-graph-colourer/graph_colour.c \
              simple-graph-colourer/graph_colour_solver.c \
              simple-graph-colourer/c_program_timing.c
 
-GC2_HEADERS = simple-graph-colourer2/graph_colour_solver.h \
-              simple-graph-colourer2/c_program_timing.h
+GC2_HEADERS = simple-graph-colourer2/graph_colour_solver.h
 GC2_C_FILES = simple-graph-colourer2/graph_colour.c \
-              simple-graph-colourer2/graph_colour_solver.c \
-              simple-graph-colourer2/c_program_timing.c
+              simple-graph-colourer2/graph_colour_solver.c
 
 CPPFLAGS = -Wall -Wno-unused-function -pthread
 VC_HEADERS = \

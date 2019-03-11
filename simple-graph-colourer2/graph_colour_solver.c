@@ -1,6 +1,5 @@
 #define _POSIX_SOURCE
 
-#include "c_program_timing.h"
 #include "graph_colour_solver.h"
 
 #include <limits.h>
@@ -29,7 +28,7 @@ void make_adjacency_lists(struct Graph *g)
                 g->adjlist[i].push_back(j);
 }
 
-struct Graph induced_subgraph(struct Graph *g, std::vector<int> & vv) {
+struct Graph induced_subgraph(const Graph *g, std::vector<int> & vv) {
     struct Graph subg(vv.size());
     for (int i=0; i<subg.n; i++)
         for (int j=0; j<i; j++)
@@ -210,14 +209,12 @@ int choose_branching_vertex(struct Graph *original_g, unsigned long long *availa
 }
 
 void expand(struct Graph *original_g, struct Solution *C,
-        struct Solution *incumbent, int level, long *expand_call_count,
-        bool quiet, int num_colours, unsigned long long *available_classes_bitset,
+        struct Solution *incumbent, int level, unsigned long long *expand_call_count, unsigned long long expand_call_limit,
+        int num_colours, unsigned long long *available_classes_bitset,
         int *num_colours_assigned_to_vertex, int domain_num_words, int f)
 {
     (*expand_call_count)++;
-    if (*expand_call_count % 1000 == 0)
-        check_for_timeout();
-    if (is_timeout_flag_set())
+    if (*expand_call_count >= expand_call_limit)
         return;
 
     if (C->size == original_g->n * f) {
@@ -310,8 +307,8 @@ void expand(struct Graph *original_g, struct Solution *C,
         }
 
         solution_colour_vtx(C, best_orig_v, orig_colour, new_available_classes_bitset.data(), new_num_colours_assigned_to_vertex.data(), domain_num_words, f);
-        expand(original_g, C, incumbent, level+1, expand_call_count,
-                quiet, num_colours, new_available_classes_bitset.data(), new_num_colours_assigned_to_vertex.data(), domain_num_words, f);
+        expand(original_g, C, incumbent, level+1, expand_call_count, expand_call_limit,
+                num_colours, new_available_classes_bitset.data(), new_num_colours_assigned_to_vertex.data(), domain_num_words, f);
         solution_pop_vtx(C);
 
         if (incumbent->size == original_g->n * f)
@@ -324,8 +321,8 @@ void expand(struct Graph *original_g, struct Solution *C,
     solution_resize(C, C_sz_before_unit_prop);
 }
 
-void solve(struct Graph *original_g, long *expand_call_count,
-        bool quiet, struct Solution *incumbent, int num_colours, int f)
+void solve(struct Graph *original_g, unsigned long long *expand_call_count, unsigned long long expand_call_limit,
+        struct Solution *incumbent, int num_colours, int f)
 {
     struct Solution C;
     init_Solution(&C, original_g->n);
@@ -335,8 +332,8 @@ void solve(struct Graph *original_g, long *expand_call_count,
         set_first_n_bits(available_classes_bitset.data() + i * domain_num_words, num_colours);
     }
     std::vector<int> num_colours_assigned_to_vertex(original_g->n);
-    expand(original_g, &C, incumbent, 0, expand_call_count,
-            quiet, num_colours, available_classes_bitset.data(), num_colours_assigned_to_vertex.data(), domain_num_words, f);
+    expand(original_g, &C, incumbent, 0, expand_call_count, expand_call_limit,
+            num_colours, available_classes_bitset.data(), num_colours_assigned_to_vertex.data(), domain_num_words, f);
     destroy_Solution(&C);
 }
 
@@ -353,3 +350,92 @@ bool is_solution_valid(struct Graph *original_g, struct Solution *solution,
             return false;
     return true;
 }
+
+std::vector<int> randomised_vertex_order(const Graph & g, unsigned seed)
+{
+    srand(seed);
+
+    std::vector<int> shuffled_ints;
+    for (int i=0; i<g.n; i++)
+        shuffled_ints.push_back(i);
+    for (int i=g.n-1; i>=1; i--) {
+        int r = rand() % (i+1);
+        std::swap(shuffled_ints[i], shuffled_ints[r]);
+    }
+
+    std::vector<int> vv;
+
+    std::vector<int> degree(g.n);
+    for (int v=0; v<g.n; v++) {
+        for (int w=v+1; w<g.n; w++) {
+            if (g.adj_matrix[v][w]) {
+                ++degree[v];
+                ++degree[w];
+            }
+        }
+    }
+
+    for (int deg=0; deg<g.n; deg++)
+        for (int v : shuffled_ints)
+            if (degree[v] == deg)
+                vv.push_back(v);
+
+    return vv;
+}
+
+int find_colouring_number(const Graph & g, int f)
+{
+    unsigned rng_seed = 0;
+
+    std::vector<int> vv = randomised_vertex_order(g, rng_seed);
+    struct Graph sorted_g = induced_subgraph(&g, vv);
+
+    unsigned long long expand_call_limit = 1000;
+    int num_colours = 0;
+    for ( ; ; num_colours++) {
+        struct Solution clq;
+        init_Solution(&clq, sorted_g.n);
+
+        make_adjacency_lists(&sorted_g);
+
+        unsigned long long expand_call_count = 0;
+        while (true) {
+            solve(&sorted_g, &expand_call_count, expand_call_limit, &clq, num_colours, f);
+            if (expand_call_count < expand_call_limit)
+                break;
+            clq.size = 0;
+            expand_call_limit = expand_call_limit + expand_call_limit / 2;
+            expand_call_count = 0;
+            ++rng_seed;
+            vv = randomised_vertex_order(g, rng_seed);
+            sorted_g = induced_subgraph(&g, vv);
+            make_adjacency_lists(&sorted_g);
+        }
+
+//        if (clq.size == sorted_g->n * arguments.fractional_level) {
+//            printf("Solution");
+//            struct Solution solution_for_unsorted_graph;
+//            init_Solution(&solution_for_unsorted_graph, sorted_g->n);
+//            solution_for_unsorted_graph.size = clq.size;
+//            for (int i=0; i<sorted_g->n; i++) {
+//                solution_for_unsorted_graph.vtx_colour[vv[i]] = clq.vtx_colour[i];
+//            }
+//            if (!is_solution_valid(g, &solution_for_unsorted_graph, num_colours))
+//                fail("The solution that was found is not a colouring with the correct number of colours!!!");
+//            for (int i=0; i<sorted_g->n; i++) {
+//                printf(" %d", solution_for_unsorted_graph.vtx_colour[i]);
+//            }
+//            destroy_Solution(&solution_for_unsorted_graph);
+//            printf("\n");
+//        }
+
+        printf("%d %lld %s\n", num_colours, expand_call_count, clq.size == sorted_g.n * f ? "SATISFIABLE" : "UNSAT");
+
+        destroy_Solution(&clq);
+
+        if (clq.size == sorted_g.n * f)
+            break;
+    }
+    return num_colours;
+}
+
