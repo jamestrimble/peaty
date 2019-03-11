@@ -14,15 +14,6 @@
 //                                GRAPH STUFF                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void remove_edge(struct Graph *g, int v, int w) {
-    if (g->adj_matrix[v][w]) {
-        g->adj_matrix[v][w] = false;
-        g->adj_matrix[w][v] = false;
-        --g->degree[v];
-        --g->degree[w];
-    }
-}
-
 void add_edge(struct Graph *g, int v, int w) {
     if (!g->adj_matrix[v][w]) {
         g->adj_matrix[v][w] = true;
@@ -231,7 +222,7 @@ int choose_branching_vertex(struct Graph *original_g, unsigned long long *availa
         int orig_v = vertices_with_best_available_class_count[i];
         for (unsigned j=0; j<i; j++) {
             int orig_w = vertices_with_best_available_class_count[j];
-            if (original_g->adj_matrix[orig_v][orig_w]) {
+            if (!original_g->adj_matrix[orig_v][orig_w]) {
                 int pc = bitset_intersection_popcount(
                         available_classes_bitset + orig_v * domain_num_words, available_classes_bitset + orig_w * domain_num_words,
                         domain_num_words);
@@ -290,8 +281,15 @@ void expand(struct Graph *original_g, struct Solution *C,
         solution_colour_vtx(C, orig_v, colour, available_classes_bitset, num_colours_assigned_to_vertex, domain_num_words, f);
         if (num_colours_assigned_to_vertex[orig_v] != f)
             unit_orig_v_stack.push_back(orig_v);
-        for (int i=0; i<original_g->adjlist_len[orig_v]; i++) {
-            int orig_w = original_g->adjlist[orig_v][i];
+
+        int i=0;
+        for (int orig_w=0; orig_w<original_g->n; orig_w++) {
+            if (i < original_g->adjlist_len[orig_v] && original_g->adjlist[orig_v][i] == orig_w) {
+                ++i;
+                continue;
+            } else if (orig_w == orig_v) {
+                continue;
+            }
             if (test_bit(available_classes_bitset + orig_w * domain_num_words, colour)) {
                 unset_bit(available_classes_bitset + orig_w * domain_num_words, colour);
                 int popcount = bitset_popcount(available_classes_bitset + orig_w * domain_num_words, domain_num_words);
@@ -333,8 +331,15 @@ void expand(struct Graph *original_g, struct Solution *C,
             new_num_colours_assigned_to_vertex[i] = num_colours_assigned_to_vertex[i];
         for (int i=0; i<original_g->n * domain_num_words; i++)
             new_available_classes_bitset[i] = available_classes_bitset[i];
-        for (int i=0; i<original_g->adjlist_len[best_orig_v]; i++) {
-            int orig_w = original_g->adjlist[best_orig_v][i];
+
+        int i=0;
+        for (int orig_w=0; orig_w<original_g->n; orig_w++) {
+            if (i < original_g->adjlist_len[best_orig_v] && original_g->adjlist[best_orig_v][i] == orig_w) {
+                ++i;
+                continue;
+            } else if (orig_w == best_orig_v) {
+                continue;
+            }
             unset_bit(new_available_classes_bitset.data() + orig_w * domain_num_words, orig_colour);
             // We don't need to check for domain wipeout here, since any domain that was unit
             // would have been instantiated in the unit-propagation step.

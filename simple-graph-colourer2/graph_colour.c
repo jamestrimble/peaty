@@ -101,18 +101,13 @@ struct Graph *readGraph(char* filename, int fractional_level)
                 printf("%d vertices\n", nvertices);
                 printf("%d edges\n", medges);
                 g = new_graph(nvertices);
-                for (int i=0; i<nvertices; i++) {
-                    for (int j=i+1; j<nvertices; j++) {
-                        add_edge(g, i, j);
-                    }
-                }
                 break;
             case 'e':
                 if (sscanf(line, "e %d %d", &v, &w)!=2)
                     fail("Error reading a line beginning with e.\n");
                 v -= 1; // since input format is 1-based
                 w -= 1; // ditto
-                remove_edge(g, v, w);
+                add_edge(g, v, w);
                 edges_read++;
                 break;
             }
@@ -142,7 +137,7 @@ int main(int argc, char** argv)
 
     std::vector<int> vv;
 
-    for (int deg=input_g_unsorted->n; deg>=0; deg--)
+    for (int deg=0; deg<input_g_unsorted->n; deg++)
         for (int v : shuffled_ints)
             if (input_g_unsorted->degree[v] == deg)
                 vv.push_back(v);

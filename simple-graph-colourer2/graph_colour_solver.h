@@ -8,8 +8,6 @@ struct Graph {
     int **adjlist;
 };
 
-void remove_edge(struct Graph *g, int v, int w);
-
 void add_edge(struct Graph *g, int v, int w);
 
 struct Graph *induced_subgraph(struct Graph *g, std::vector<int> & vv);
