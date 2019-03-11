@@ -29,8 +29,6 @@ class MWC {
 
     void expand(VtxList& C, vector<unsigned long long> & P_bitset, long & search_node_count)
     {
-        if (params.abort->load())
-            return;
         ++search_node_count;
 
         if (bitset_empty(P_bitset, g.numwords)) {

@@ -6,12 +6,6 @@
 
 struct Params
 {
-    // If this is set to true, we should abort due to a time limit.
-    std::atomic<bool> * abort;
-
-    // The start time of the algorithm.
-    std::chrono::time_point<std::chrono::steady_clock> start_time;
-
     int colouring_variant;
     int max_sat_level;
     int algorithm_num;

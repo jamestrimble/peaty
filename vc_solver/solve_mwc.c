@@ -40,7 +40,6 @@ static struct argp_option options[] = {
     {"unweighted-sort", 'u', 0, 0, "Unweighted ordering (only applies to certain algorithms)"},
     {"colouring-variant", 'c', "VARIANT", 0, "For algorithms 0 and 5, which type of colouring?"},
     {"ind-set-upper-bound", 'i', "BOUND", 0, "An upper bound on the size of the max independent set"},
-    {"time-limit", 'l', "LIMIT", 0, "Time limit in seconds"},
     {"algorithm", 'a', "NUMBER", 0, "Algorithm number"},
     {"max-sat-level", 'm', "LEVEL", 0, "Level of MAXSAT reasoning; default=2"},
     {"num-threads", 't', "NUMBER", 0, "Number of threads (for parallel algorithms only)"},
@@ -59,7 +58,6 @@ static struct {
     bool unweighted_sort;
     int colouring_variant = 3;
     int ind_set_upper_bound;
-    int time_limit;
     int algorithm_num;
     int max_sat_level = -1;
     int num_threads = 1;
@@ -80,9 +78,6 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state)
             break;
         case 'i':
             arguments.ind_set_upper_bound = atoi(arg);
-            break;
-        case 'l':
-            arguments.time_limit = atoi(arg);
             break;
         case 'a':
             arguments.algorithm_num = atoi(arg);
@@ -135,69 +130,6 @@ bool check_vertex_cover(const SparseGraph & g, const vector<int> & vc) {
         }
     }
     return true;
-}
-
-
-// Credit for timing and timeout code: Ciaran's code from our paper on restarting SIP
-
-/* Helper: return a function that runs the specified algorithm, dealing
- * with timing information and timeouts. */
-template <typename Result_, typename Params_, typename Data_>
-auto run_this_wrapped(const function<Result_ (const Data_ &, const Params_ &)> & func)
-    -> function<Result_ (const Data_ &, Params_ &, bool &, int)>
-{
-    return [func] (const Data_ & data, Params_ & params, bool & aborted, int timeout) -> Result_ {
-        /* For a timeout, we use a thread and a timed CV. We also wake the
-         * CV up if we're done, so the timeout thread can terminate. */
-        thread timeout_thread;
-        mutex timeout_mutex;
-        condition_variable timeout_cv;
-        atomic<bool> abort;
-        abort.store(false);
-        params.abort = &abort;
-        if (0 != timeout) {
-            timeout_thread = thread([&] {
-                    auto abort_time = steady_clock::now() + seconds(timeout);
-                    {
-                        /* Sleep until either we've reached the time limit,
-                         * or we've finished all the work. */
-                        unique_lock<mutex> guard(timeout_mutex);
-                        while (! abort.load()) {
-                            if (cv_status::timeout == timeout_cv.wait_until(guard, abort_time)) {
-                                /* We've woken up, and it's due to a timeout. */
-                                aborted = true;
-                                break;
-                            }
-                        }
-                    }
-                    abort.store(true);
-                    });
-        }
-
-        /* Start the clock */
-        params.start_time = steady_clock::now();
-        auto result = func(data, params);
-
-        /* Clean up the timeout thread */
-        if (timeout_thread.joinable()) {
-            {
-                unique_lock<mutex> guard(timeout_mutex);
-                abort.store(true);
-                timeout_cv.notify_all();
-            }
-            timeout_thread.join();
-        }
-
-        return result;
-    };
-}
-
-/* Helper: return a function that runs the specified algorithm, dealing
- * with timing information and timeouts. */
-template <typename Result_, typename Params_, typename Data_>
-auto run_this(Result_ func(const Data_ &, const Params_ &)) -> function<Result_ (const Data_ &, Params_ &, bool &, int)>
-{
-    return run_this_wrapped(function<Result_ (const Data_ &, const Params_ &)>(func));
 }
 
 struct Result
@@ -338,10 +270,8 @@ auto find_vertex_cover_of_subgraph(const SparseGraph & g, vector<int> component,
     return vertex_cover;
 }
 
-auto mwc(const SparseGraph & g_, const Params & params) -> Result
+auto mwc(SparseGraph & g, const Params & params) -> Result
 {
-    // TODO: get rid of const_cast after removing run_this
-    SparseGraph & g = const_cast<SparseGraph &>(g_);
     vector<bool> deleted = g.vertex_has_loop;
     vector<bool> in_cover = g.vertex_has_loop;
     g.remove_edges_incident_to_loopy_vertices();
@@ -399,22 +329,14 @@ int main(int argc, char** argv) {
     if (arguments.algorithm_num != 5)
         arguments.num_threads = 1;
 
-    const SparseGraph g =
+    SparseGraph g =
             arguments.file_format==FileFormat::Pace ? fastReadSparseGraphPaceFormat() :
                                                       readSparseGraph();
 
     Params params {arguments.colouring_variant, arguments.max_sat_level, arguments.algorithm_num,
             arguments.num_threads, arguments.quiet, arguments.unweighted_sort, arguments.ind_set_upper_bound};
 
-    bool aborted = false;
-    Result result = run_this(mwc)(g, params, aborted, arguments.time_limit);
-
-    auto elapsed_msec = duration_cast<milliseconds>(steady_clock::now() - params.start_time).count();
-
-//    if (aborted) {
-//        printf("TIMEOUT\n");
-//        elapsed_msec = arguments.time_limit * 1000;
-//    }
+    Result result = mwc(g, params);
 
     // sort vertices in clique by index
     std::sort(result.vertex_cover.vv.begin(), result.vertex_cover.vv.end());
@@ -423,7 +345,7 @@ int main(int argc, char** argv) {
     for (int v : result.vertex_cover.vv)
         std::cout << (v+1) << std::endl;
 
-//    printf("Stats: status program algorithm_number max_sat_level num_threads size weight time_ms nodes\n");
+//    printf("Stats: status program algorithm_number max_sat_level num_threads size weight nodes\n");
 //    std::cout <<
 //            (aborted ? "TIMEOUT" : "COMPLETED") << " " <<
 //            argv[0] << " " <<
@@ -432,7 +354,6 @@ int main(int argc, char** argv) {
 //            arguments.num_threads << " " <<
 //            result.vertex_cover.vv.size() << " " <<
 //            result.vertex_cover.total_wt <<  " " <<
-//            elapsed_msec << " " <<
 //            result.search_node_count << std::endl;
 
     if (!check_vertex_cover(g, result.vertex_cover.vv))
