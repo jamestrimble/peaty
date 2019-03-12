@@ -18,7 +18,8 @@ VC_HEADERS = \
              vc_solver/sequential_solver.h \
              vc_solver/colourer.h \
              vc_solver/root_node_processing.h \
-             vc_solver/params.h
+             vc_solver/params.h \
+             vc_solver/graph_colour_solver.h
 VC_C_FILES = \
              vc_solver/graph.c \
              vc_solver/util.c \
@@ -26,7 +27,8 @@ VC_C_FILES = \
              vc_solver/solve_mwc.c \
              vc_solver/sequential_solver.c \
              vc_solver/colourer.c \
-             vc_solver/root_node_processing.c
+             vc_solver/root_node_processing.c \
+             vc_solver/graph_colour_solver.c
 
 all: simple-graph-colourer/graph_colour vc_solver/graph_colour vc_solver/solve_vc
 

@@ -391,7 +391,7 @@ int find_colouring_number(const ColouringGraph & g, int f)
 //            printf("\n");
 //        }
 
-        printf("%d %lld %s\n", num_colours, expand_call_count, clq.size == sorted_g.n * f ? "SATISFIABLE" : "UNSAT");
+//        printf("%d %lld %s\n", num_colours, expand_call_count, clq.size == sorted_g.n * f ? "SATISFIABLE" : "UNSAT");
 
         if (clq.size == sorted_g.n * f)
             break;

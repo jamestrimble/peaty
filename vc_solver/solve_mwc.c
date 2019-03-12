@@ -5,6 +5,7 @@
 #include "util.h"
 #include "sequential_solver.h"
 #include "params.h"
+#include "graph_colour_solver.h"
 
 #include <argp.h>
 #include <stdbool.h>
@@ -39,7 +40,6 @@ static struct argp_option options[] = {
     {"quiet", 'q', 0, 0, "Quiet output"},
     {"unweighted-sort", 'u', 0, 0, "Unweighted ordering (only applies to certain algorithms)"},
     {"colouring-variant", 'c', "VARIANT", 0, "For algorithms 0 and 5, which type of colouring?"},
-    {"ind-set-upper-bound", 'i', "BOUND", 0, "An upper bound on the size of the max independent set"},
     {"algorithm", 'a', "NUMBER", 0, "Algorithm number"},
     {"max-sat-level", 'm', "LEVEL", 0, "Level of MAXSAT reasoning; default=2"},
     {"num-threads", 't', "NUMBER", 0, "Number of threads (for parallel algorithms only)"},
@@ -57,7 +57,6 @@ static struct {
     bool quiet;
     bool unweighted_sort;
     int colouring_variant = 3;
-    int ind_set_upper_bound;
     int algorithm_num;
     int max_sat_level = -1;
     int num_threads = 1;
@@ -76,9 +75,6 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state)
         case 'c':
             arguments.colouring_variant = atoi(arg);
             break;
-        case 'i':
-            arguments.ind_set_upper_bound = atoi(arg);
-            break;
         case 'a':
             arguments.algorithm_num = atoi(arg);
             break;
@@ -91,6 +87,8 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state)
         case 'f':
             if (!strcmp(arg, "PACE") || !strcmp(arg, "pace"))
                 arguments.file_format = FileFormat::Pace;
+            else if (!strcmp(arg, "DIMACS") || !strcmp(arg, "dimacs"))
+                arguments.file_format = FileFormat::Dimacs;
             break;
         case ARGP_KEY_ARG:
 //            argp_usage(state);
@@ -254,9 +252,19 @@ auto find_vertex_cover_of_subgraph(const SparseGraph & g, vector<int> component,
 {
     std::sort(component.begin(), component.end());
     SparseGraph subgraph = g.induced_subgraph<SparseGraph>(component);
+
+    ColouringGraph cg(subgraph.n);
+    for (unsigned v=0; v<subgraph.n; v++)
+        for (int w : subgraph.adjlist[v])
+            if (int(v) < w)
+                cg.add_edge(v, w);
+    int upper_bound_from_colouring = find_colouring_number(cg, 2) / 2;
+    std::cout << "c Upper bound from colouring: " << upper_bound_from_colouring << std::endl;
+
+    std::atomic_int ind_set_upper_bound(upper_bound_from_colouring);
     VtxList independent_set(g.n);
     long search_node_count = 0;
-    sequential_mwc(subgraph, params, independent_set, search_node_count);
+    sequential_mwc(subgraph, params, independent_set, search_node_count, ind_set_upper_bound);
     vector<bool> vtx_is_in_ind_set(subgraph.n);
     for (int v : independent_set.vv) {
         vtx_is_in_ind_set[v] = true;
@@ -334,7 +342,7 @@ int main(int argc, char** argv) {
                                                       readSparseGraph();
 
     Params params {arguments.colouring_variant, arguments.max_sat_level, arguments.algorithm_num,
-            arguments.num_threads, arguments.quiet, arguments.unweighted_sort, arguments.ind_set_upper_bound};
+            arguments.num_threads, arguments.quiet, arguments.unweighted_sort};
 
     Result result = mwc(g, params);
 

@@ -5,6 +5,9 @@
 #include "graph.h"
 #include "params.h"
 
-auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumbent, long & search_node_count) -> void;
+#include <atomic>
+
+auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumbent, long & search_node_count,
+        std::atomic_int & ind_set_upper_bound) -> void;
 
 #endif

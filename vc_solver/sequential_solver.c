@@ -27,7 +27,8 @@ class MWC {
     vector<vector<unsigned long long>> branch_vv_bitsets;
     vector<vector<unsigned long long>> new_P_bitsets;
 
-    void expand(VtxList& C, vector<unsigned long long> & P_bitset, long & search_node_count)
+    void expand(VtxList& C, vector<unsigned long long> & P_bitset, long & search_node_count,
+            std::atomic_int & ind_set_upper_bound)
     {
         ++search_node_count;
 
@@ -36,7 +37,8 @@ class MWC {
             return;
         }
 
-        if (params.ind_set_upper_bound != 0 && int(incumbent.vv.size()) == params.ind_set_upper_bound) {
+        int ind_set_upper_bound_int = ind_set_upper_bound.load();
+        if (ind_set_upper_bound_int != -1 && int(incumbent.vv.size()) == ind_set_upper_bound_int) {
             return;
         }
 
@@ -59,7 +61,7 @@ class MWC {
                 unset_bit(branch_vv_bitset, v);
                 bitset_intersection_with_complement(P_bitset, g.bit_complement_nd[v], new_P_bitset, g.numwords);
                 C.push_vtx(v, g);
-                expand(C, new_P_bitset, search_node_count);
+                expand(C, new_P_bitset, search_node_count, ind_set_upper_bound);
                 set_bit(P_bitset, v);
                 C.pop_vtx(g);
             }
@@ -72,15 +74,16 @@ public:
     {
     }
 
-    auto run(VtxList & C, long & search_node_count) -> void
+    auto run(VtxList & C, long & search_node_count, std::atomic_int & ind_set_upper_bound) -> void
     {
         vector<unsigned long long> P_bitset(g.numwords, 0);
         set_first_n_bits(P_bitset, g.n);
-        expand(C, P_bitset, search_node_count);
+        expand(C, P_bitset, search_node_count, ind_set_upper_bound);
     }
 };
 
-auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumbent, long & search_node_count) -> void
+auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumbent, long & search_node_count,
+        std::atomic_int & ind_set_upper_bound) -> void
 {
     VtxList C(g.n);
 
@@ -99,7 +102,7 @@ auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumb
     Graph ordered_subgraph = ordered_graph.complement_of_induced_subgraph(vv1);
     std::shared_ptr<Colourer> colourer = Colourer::create_colourer(ordered_subgraph, params);
 
-    MWC(ordered_subgraph, params, incumbent, *colourer).run(C, search_node_count);
+    MWC(ordered_subgraph, params, incumbent, *colourer).run(C, search_node_count, ind_set_upper_bound);
     for (unsigned i=0; i<incumbent.vv.size(); i++)
         incumbent.vv[i] = vv0[incumbent.vv[i]];
 }
