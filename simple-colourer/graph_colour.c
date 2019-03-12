@@ -1,6 +1,6 @@
 #define _POSIX_SOURCE
 
-#include "graph_colour_solver.h"
+#include "../vc_solver/graph_colour_solver.h"
 
 #include <iostream>
 #include <string>

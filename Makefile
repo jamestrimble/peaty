@@ -1,5 +1,5 @@
 GC2_HEADERS = vc_solver/graph_colour_solver.h
-GC2_C_FILES = vc_solver/graph_colour.c \
+GC2_C_FILES = simple-colourer/graph_colour.c \
               vc_solver/graph_colour_solver.c
 
 CPPFLAGS = -Wall -Wno-unused-function -pthread
@@ -24,15 +24,15 @@ VC_C_FILES = \
              vc_solver/root_node_processing.c \
              vc_solver/graph_colour_solver.c
 
-all: vc_solver/graph_colour vc_solver/solve_vc
+all: simple-colourer/graph_colour vc_solver/solve_vc
 
 vc_solver/solve_vc: $(VC_C_FILES) $(VC_HEADERS)
 	g++ -O3 -march=native $(CPPFLAGS) -std=c++14 -o vc_solver/solve_vc -DNDEBUG $(VC_C_FILES)
 
-vc_solver/graph_colour: $(GC2_C_FILES) $(GC2_HEADERS)
-	g++ -O3 -march=native $(CPPFLAGS) -std=c++14 -Wall -Wno-unused-function -o vc_solver/graph_colour $(GC2_C_FILES) -lm
+simple-colourer/graph_colour: $(GC2_C_FILES) $(GC2_HEADERS)
+	g++ -O3 -march=native $(CPPFLAGS) -std=c++14 -Wall -Wno-unused-function -o simple-colourer/graph_colour $(GC2_C_FILES) -lm
 
 test:
 	./test-script
 clean:
-	rm -f vc_solver/graph_colour vc_solver/solve_vc
+	rm -f simple-colourer/graph_colour vc_solver/solve_vc
