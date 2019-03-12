@@ -7,24 +7,24 @@ struct ColouringGraph {
 
     ColouringGraph(int n) : n(n), adj_matrix(n, std::vector<bool>(n)), adjlist(n) {
     }
+
+    void add_edge(int v, int w)
+    {
+        adj_matrix[v][w] = true;
+        adj_matrix[w][v] = true;
+    }
+
+    struct ColouringGraph induced_subgraph(std::vector<int> & vv) const;
+
+    void make_adjacency_lists();
 };
-
-void add_edge(struct ColouringGraph & g, int v, int w);
-
-struct ColouringGraph induced_subgraph(const ColouringGraph *g, std::vector<int> & vv);
-
-void make_adjacency_lists(struct ColouringGraph *g);
 
 
 struct Solution {
-    int size;
-    int capacity;
-    int *vtx_colour;
+    int size = 0;
+    std::vector<std::vector<int>> vtx_colour;
+    Solution(int n, int f) : vtx_colour(n, std::vector<int>(f)) {}
 };
-
-void init_Solution(struct Solution *l, int capacity);
-
-void destroy_Solution(struct Solution *l);
 
 
 //void solve(struct ColouringGraph *g, unsigned long long *expand_call_count, unsigned long long expand_call_limit,

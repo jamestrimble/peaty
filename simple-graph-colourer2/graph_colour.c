@@ -94,7 +94,7 @@ struct ColouringGraph readColouringGraph(char* filename)
                     fail("Error reading a line beginning with e.\n");
                 v -= 1; // since input format is 1-based
                 w -= 1; // ditto
-                add_edge(g, v, w);
+                g.add_edge(v, w);
                 edges_read++;
                 break;
             }

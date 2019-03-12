@@ -13,27 +13,21 @@
 //                                GRAPH STUFF                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void add_edge(ColouringGraph & g, int v, int w) {
-    if (!g.adj_matrix[v][w]) {
-        g.adj_matrix[v][w] = true;
-        g.adj_matrix[w][v] = true;
-    }
-}
-
-void make_adjacency_lists(ColouringGraph *g)
+void ColouringGraph::make_adjacency_lists()
 {
-    for (int i=0; i<g->n; i++)
-        for (int j=0; j<g->n; j++)
-            if (g->adj_matrix[i][j])
-                g->adjlist[i].push_back(j);
+    for (int i=0; i<n; i++)
+        for (int j=0; j<n; j++)
+            if (adj_matrix[i][j])
+                adjlist[i].push_back(j);
 }
 
-ColouringGraph induced_subgraph(const ColouringGraph *g, std::vector<int> & vv) {
+ColouringGraph ColouringGraph::induced_subgraph(std::vector<int> & vv) const
+{
     ColouringGraph subg(vv.size());
     for (int i=0; i<subg.n; i++)
         for (int j=0; j<i; j++)
-            if (g->adj_matrix[vv[i]][vv[j]])
-                add_edge(subg, i, j);
+            if (adj_matrix[vv[i]][vv[j]])
+                subg.add_edge(i, j);
 
     return subg;
 }
@@ -118,23 +112,11 @@ static void copy_bitset(unsigned long long *src,
 //                               SOLUTION STUFF                               //
 ////////////////////////////////////////////////////////////////////////////////
 
-void init_Solution(struct Solution *solution, int capacity)
-{
-    solution->vtx_colour = (int *) malloc(capacity * sizeof *solution->vtx_colour);
-    solution->size = 0;
-    solution->capacity = capacity;
-}
-
-void destroy_Solution(struct Solution *solution)
-{
-    free(solution->vtx_colour);
-}
-
 void solution_colour_vtx(struct Solution *solution, int v, int colour,
         unsigned long long *available_classes_bitset, int *num_colours_assigned_to_vertex, int domain_num_words, int f)
 {
     ++solution->size;
-    solution->vtx_colour[v] = colour;
+    solution->vtx_colour[v][num_colours_assigned_to_vertex[v]] = colour;
     ++num_colours_assigned_to_vertex[v];
     unset_bit(available_classes_bitset + v * domain_num_words, colour);
     if (num_colours_assigned_to_vertex[v] == f)
@@ -154,8 +136,7 @@ void solution_resize(struct Solution *solution, int size)
 void copy_Solution(struct Solution *src, struct Solution *dest)
 {
     dest->size = src->size;
-    for (int i=0; i<src->capacity; i++)
-        dest->vtx_colour[i] = src->vtx_colour[i];
+    dest->vtx_colour = src->vtx_colour;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -321,8 +302,7 @@ void expand(ColouringGraph *g, struct Solution *C,
 void solve(ColouringGraph *g, unsigned long long *expand_call_count, unsigned long long expand_call_limit,
         struct Solution *incumbent, int num_colours, int f)
 {
-    struct Solution C;
-    init_Solution(&C, g->n);
+    struct Solution C(g->n, f);
     int domain_num_words = (num_colours + BITS_PER_WORD - 1) / BITS_PER_WORD;
     std::vector<unsigned long long> available_classes_bitset(g->n * domain_num_words);
     for (int i=0; i<g->n; i++) {
@@ -331,20 +311,23 @@ void solve(ColouringGraph *g, unsigned long long *expand_call_count, unsigned lo
     std::vector<int> num_colours_assigned_to_vertex(g->n);
     expand(g, &C, incumbent, 0, expand_call_count, expand_call_limit,
             num_colours, available_classes_bitset.data(), num_colours_assigned_to_vertex.data(), domain_num_words, f);
-    destroy_Solution(&C);
 }
 
 // FIXME
 bool is_solution_valid(ColouringGraph *g, struct Solution *solution,
-        int num_colours)
+        int num_colours, int f)
 {
     for (int i=0; i<g->n; i++)
         for (int j=0; j<i; j++)
-            if (g->adj_matrix[i][j] && solution->vtx_colour[i] == solution->vtx_colour[j])
-                return false;
+            if (g->adj_matrix[i][j])
+                for (int k=0; k<f; k++)
+                    for (int m=0; m<f; m++)
+                        if (solution->vtx_colour[i][k] == solution->vtx_colour[j][m])
+                            return false;
     for (int i=0; i<g->n; i++)
-        if (solution->vtx_colour[i] < 0 || solution->vtx_colour[i] >= num_colours)
-            return false;
+        for (int j=0; j<f; j++)
+            if (solution->vtx_colour[i][j] < 0 || solution->vtx_colour[i][j] >= num_colours)
+                return false;
     return true;
 }
 
@@ -368,15 +351,14 @@ int find_colouring_number(const ColouringGraph & g, int f)
     unsigned rng_seed = 0;
 
     std::vector<int> vv = randomised_vertex_order(g, rng_seed);
-    ColouringGraph sorted_g = induced_subgraph(&g, vv);
+    ColouringGraph sorted_g = g.induced_subgraph(vv);
 
     unsigned long long expand_call_limit = 1000;
     int num_colours = 0;
     for ( ; ; num_colours++) {
-        struct Solution clq;
-        init_Solution(&clq, sorted_g.n);
+        struct Solution clq(g.n, f);
 
-        make_adjacency_lists(&sorted_g);
+        sorted_g.make_adjacency_lists();
 
         unsigned long long expand_call_count = 0;
         while (true) {
@@ -388,8 +370,8 @@ int find_colouring_number(const ColouringGraph & g, int f)
             expand_call_count = 0;
             ++rng_seed;
             vv = randomised_vertex_order(g, rng_seed);
-            sorted_g = induced_subgraph(&g, vv);
-            make_adjacency_lists(&sorted_g);
+            sorted_g = g.induced_subgraph(vv);
+            sorted_g.make_adjacency_lists();
         }
 
 //        if (clq.size == sorted_g->n * arguments.fractional_level) {
@@ -410,8 +392,6 @@ int find_colouring_number(const ColouringGraph & g, int f)
 //        }
 
         printf("%d %lld %s\n", num_colours, expand_call_count, clq.size == sorted_g.n * f ? "SATISFIABLE" : "UNSAT");
-
-        destroy_Solution(&clq);
 
         if (clq.size == sorted_g.n * f)
             break;
