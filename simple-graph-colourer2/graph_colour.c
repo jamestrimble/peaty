@@ -67,7 +67,7 @@ static struct argp argp = { options, parse_opt, args_doc, doc };
 
 /******************************************************************************/
 
-struct Graph readGraph(char* filename)
+struct ColouringGraph readColouringGraph(char* filename)
 {
     char* line = NULL;
     size_t nchar = 0;
@@ -77,7 +77,7 @@ struct Graph readGraph(char* filename)
     int v, w;
     int edges_read = 0;
 
-    struct Graph g(0);
+    struct ColouringGraph g(0);
 
     while (getline(&line, &nchar, stdin) != -1) {
         if (nchar > 0) {
@@ -87,7 +87,7 @@ struct Graph readGraph(char* filename)
                     fail("Error reading a line beginning with p.\n");
                 printf("%d vertices\n", nvertices);
                 printf("%d edges\n", medges);
-                g = Graph(nvertices);
+                g = ColouringGraph(nvertices);
                 break;
             case 'e':
                 if (sscanf(line, "e %d %d", &v, &w)!=2)
@@ -111,7 +111,7 @@ int main(int argc, char** argv)
     set_default_arguments();
     argp_parse(&argp, argc, argv, 0, 0, 0);
 
-    struct Graph g = readGraph(arguments.filename);
+    struct ColouringGraph g = readColouringGraph(arguments.filename);
 
     int colouring_number = find_colouring_number(g, arguments.fractional_level);
 

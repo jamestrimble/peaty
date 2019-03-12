@@ -1,19 +1,19 @@
 #include <vector>
 
-struct Graph {
+struct ColouringGraph {
     int n;
     std::vector<std::vector<bool>> adj_matrix;
     std::vector<std::vector<int>> adjlist;
 
-    Graph(int n) : n(n), adj_matrix(n, std::vector<bool>(n)), adjlist(n) {
+    ColouringGraph(int n) : n(n), adj_matrix(n, std::vector<bool>(n)), adjlist(n) {
     }
 };
 
-void add_edge(struct Graph & g, int v, int w);
+void add_edge(struct ColouringGraph & g, int v, int w);
 
-struct Graph induced_subgraph(const Graph *g, std::vector<int> & vv);
+struct ColouringGraph induced_subgraph(const ColouringGraph *g, std::vector<int> & vv);
 
-void make_adjacency_lists(struct Graph *g);
+void make_adjacency_lists(struct ColouringGraph *g);
 
 
 struct Solution {
@@ -27,10 +27,10 @@ void init_Solution(struct Solution *l, int capacity);
 void destroy_Solution(struct Solution *l);
 
 
-//void solve(struct Graph *original_g, unsigned long long *expand_call_count, unsigned long long expand_call_limit,
+//void solve(struct ColouringGraph *g, unsigned long long *expand_call_count, unsigned long long expand_call_limit,
 //        bool quiet, struct Solution *incumbent, int num_colours, int f);
 //
-//bool is_solution_valid(struct Graph *original_g, struct Solution *solution,
+//bool is_solution_valid(struct ColouringGraph *g, struct Solution *solution,
 //        int num_colours);
 
-int find_colouring_number(const Graph & g, int f);
+int find_colouring_number(const ColouringGraph & g, int f);

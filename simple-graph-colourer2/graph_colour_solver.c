@@ -13,14 +13,14 @@
 //                                GRAPH STUFF                                 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void add_edge(struct Graph & g, int v, int w) {
+void add_edge(ColouringGraph & g, int v, int w) {
     if (!g.adj_matrix[v][w]) {
         g.adj_matrix[v][w] = true;
         g.adj_matrix[w][v] = true;
     }
 }
 
-void make_adjacency_lists(struct Graph *g)
+void make_adjacency_lists(ColouringGraph *g)
 {
     for (int i=0; i<g->n; i++)
         for (int j=0; j<g->n; j++)
@@ -28,8 +28,8 @@ void make_adjacency_lists(struct Graph *g)
                 g->adjlist[i].push_back(j);
 }
 
-struct Graph induced_subgraph(const Graph *g, std::vector<int> & vv) {
-    struct Graph subg(vv.size());
+ColouringGraph induced_subgraph(const ColouringGraph *g, std::vector<int> & vv) {
+    ColouringGraph subg(vv.size());
     for (int i=0; i<subg.n; i++)
         for (int j=0; j<i; j++)
             if (g->adj_matrix[vv[i]][vv[j]])
@@ -162,12 +162,12 @@ void copy_Solution(struct Solution *src, struct Solution *dest)
 ////////////////////////////////////////////////////////////////////////////////
 
 // Precondition: at least one vertex remains that can be branched on.
-int choose_branching_vertex(struct Graph *original_g, unsigned long long *available_classes_bitset,
+int choose_branching_vertex(ColouringGraph *g, unsigned long long *available_classes_bitset,
         int domain_num_words)
 {
     int best_available_class_count = INT_MAX;
     std::vector<int> vertices_with_best_available_class_count;
-    for (int i=0; i<original_g->n; i++) {
+    for (int i=0; i<g->n; i++) {
         if (bitset_empty(available_classes_bitset + i * domain_num_words, domain_num_words))
             continue;
         int available_class_count = bitset_popcount(available_classes_bitset + i * domain_num_words, domain_num_words);
@@ -182,12 +182,12 @@ int choose_branching_vertex(struct Graph *original_g, unsigned long long *availa
     std::vector<int> scores(vertices_with_best_available_class_count.size());
 
     for (unsigned i=0; i<vertices_with_best_available_class_count.size(); i++) {
-        int orig_v = vertices_with_best_available_class_count[i];
+        int v = vertices_with_best_available_class_count[i];
         for (unsigned j=0; j<i; j++) {
-            int orig_w = vertices_with_best_available_class_count[j];
-            if (!original_g->adj_matrix[orig_v][orig_w]) {
+            int w = vertices_with_best_available_class_count[j];
+            if (!g->adj_matrix[v][w]) {
                 int pc = bitset_intersection_popcount(
-                        available_classes_bitset + orig_v * domain_num_words, available_classes_bitset + orig_w * domain_num_words,
+                        available_classes_bitset + v * domain_num_words, available_classes_bitset + w * domain_num_words,
                         domain_num_words);
                 scores[i] += pc;
                 scores[j] += pc;
@@ -195,20 +195,20 @@ int choose_branching_vertex(struct Graph *original_g, unsigned long long *availa
         }
     }
 
-    int best_orig_v = -1;
+    int best_v = -1;
     int best_score = -1;
     for (unsigned i=0; i<vertices_with_best_available_class_count.size(); i++) {
-        int orig_v = vertices_with_best_available_class_count[i];
+        int v = vertices_with_best_available_class_count[i];
         if (scores[i] > best_score) {
             best_score = scores[i];
-            best_orig_v = orig_v;
+            best_v = v;
         }
     }
 
-    return best_orig_v;
+    return best_v;
 }
 
-void expand(struct Graph *original_g, struct Solution *C,
+void expand(ColouringGraph *g, struct Solution *C,
         struct Solution *incumbent, int level, unsigned long long *expand_call_count, unsigned long long expand_call_limit,
         int num_colours, unsigned long long *available_classes_bitset,
         int *num_colours_assigned_to_vertex, int domain_num_words, int f)
@@ -217,46 +217,46 @@ void expand(struct Graph *original_g, struct Solution *C,
     if (*expand_call_count >= expand_call_limit)
         return;
 
-    if (C->size == original_g->n * f) {
+    if (C->size == g->n * f) {
         copy_Solution(C, incumbent);
         return;
     }
 
     // UNIT PROPAGATION
     int C_sz_before_unit_prop = C->size;
-    std::vector<int> unit_orig_v_stack;
-    for (int i=0; i<original_g->n; i++) {
+    std::vector<int> unit_v_stack;
+    for (int i=0; i<g->n; i++) {
         int pc = bitset_popcount(available_classes_bitset + i * domain_num_words, domain_num_words);
         int num_possible_colours = pc + num_colours_assigned_to_vertex[i];
         if (pc != 0 && num_possible_colours == f) {
-            unit_orig_v_stack.push_back(i);
+            unit_v_stack.push_back(i);
         } else if (num_possible_colours < f) {
             return;
         }
     }
 
-    while (!unit_orig_v_stack.empty()) {
-        int orig_v = unit_orig_v_stack.back();
-        unit_orig_v_stack.pop_back();
-        int colour = first_set_bit(available_classes_bitset + orig_v * domain_num_words, domain_num_words);
-        solution_colour_vtx(C, orig_v, colour, available_classes_bitset, num_colours_assigned_to_vertex, domain_num_words, f);
-        if (num_colours_assigned_to_vertex[orig_v] != f)
-            unit_orig_v_stack.push_back(orig_v);
+    while (!unit_v_stack.empty()) {
+        int v = unit_v_stack.back();
+        unit_v_stack.pop_back();
+        int colour = first_set_bit(available_classes_bitset + v * domain_num_words, domain_num_words);
+        solution_colour_vtx(C, v, colour, available_classes_bitset, num_colours_assigned_to_vertex, domain_num_words, f);
+        if (num_colours_assigned_to_vertex[v] != f)
+            unit_v_stack.push_back(v);
 
         unsigned i=0;
-        for (int orig_w=0; orig_w<original_g->n; orig_w++) {
-            if (i < original_g->adjlist[orig_v].size() && original_g->adjlist[orig_v][i] == orig_w) {
+        for (int w=0; w<g->n; w++) {
+            if (i < g->adjlist[v].size() && g->adjlist[v][i] == w) {
                 ++i;
                 continue;
-            } else if (orig_w == orig_v) {
+            } else if (w == v) {
                 continue;
             }
-            if (test_bit(available_classes_bitset + orig_w * domain_num_words, colour)) {
-                unset_bit(available_classes_bitset + orig_w * domain_num_words, colour);
-                int popcount = bitset_popcount(available_classes_bitset + orig_w * domain_num_words, domain_num_words);
-                if (popcount != 0 && popcount + num_colours_assigned_to_vertex[orig_w] == f) {
-                    unit_orig_v_stack.push_back(orig_w);
-                } else if (popcount + num_colours_assigned_to_vertex[orig_w] < f) {
+            if (test_bit(available_classes_bitset + w * domain_num_words, colour)) {
+                unset_bit(available_classes_bitset + w * domain_num_words, colour);
+                int popcount = bitset_popcount(available_classes_bitset + w * domain_num_words, domain_num_words);
+                if (popcount != 0 && popcount + num_colours_assigned_to_vertex[w] == f) {
+                    unit_v_stack.push_back(w);
+                } else if (popcount + num_colours_assigned_to_vertex[w] < f) {
                     solution_resize(C, C_sz_before_unit_prop);
                     return;
                 }
@@ -264,54 +264,54 @@ void expand(struct Graph *original_g, struct Solution *C,
         }
     }
 
-    if (C->size == original_g->n * f) {
+    if (C->size == g->n * f) {
         copy_Solution(C, incumbent);
         solution_resize(C, C_sz_before_unit_prop);
         return;
     }
 
-    int best_orig_v = choose_branching_vertex(original_g, available_classes_bitset, domain_num_words);
+    int best_v = choose_branching_vertex(g, available_classes_bitset, domain_num_words);
 
     std::vector<unsigned long long> colours_in_all_domains(domain_num_words, ~0ull);
-    for (int i=0; i<original_g->n; i++)
+    for (int i=0; i<g->n; i++)
         if (!bitset_empty(available_classes_bitset + i * domain_num_words, domain_num_words))
             bitset_intersect_with(colours_in_all_domains.data(), available_classes_bitset + i * domain_num_words, domain_num_words);
 
     std::vector<unsigned long long> domain_copy(domain_num_words);
-    copy_bitset(available_classes_bitset + best_orig_v * domain_num_words, domain_copy.data(), domain_num_words);
+    copy_bitset(available_classes_bitset + best_v * domain_num_words, domain_copy.data(), domain_num_words);
 
-    std::vector<unsigned long long> new_available_classes_bitset(original_g->n * domain_num_words);
-    std::vector<int> new_num_colours_assigned_to_vertex(original_g->n);
+    std::vector<unsigned long long> new_available_classes_bitset(g->n * domain_num_words);
+    std::vector<int> new_num_colours_assigned_to_vertex(g->n);
 
     while (!bitset_empty(domain_copy.data(), domain_num_words)) {
-        int orig_colour = first_set_bit(domain_copy.data(), domain_num_words);
-        unset_bit(domain_copy.data(), orig_colour);
-        bool colour_is_in_all_domains = test_bit(colours_in_all_domains.data(), orig_colour);
+        int colour = first_set_bit(domain_copy.data(), domain_num_words);
+        unset_bit(domain_copy.data(), colour);
+        bool colour_is_in_all_domains = test_bit(colours_in_all_domains.data(), colour);
         
-        for (int i=0; i<original_g->n; i++)
+        for (int i=0; i<g->n; i++)
             new_num_colours_assigned_to_vertex[i] = num_colours_assigned_to_vertex[i];
-        for (int i=0; i<original_g->n * domain_num_words; i++)
+        for (int i=0; i<g->n * domain_num_words; i++)
             new_available_classes_bitset[i] = available_classes_bitset[i];
 
         unsigned i=0;
-        for (int orig_w=0; orig_w<original_g->n; orig_w++) {
-            if (i < original_g->adjlist[best_orig_v].size() && original_g->adjlist[best_orig_v][i] == orig_w) {
+        for (int w=0; w<g->n; w++) {
+            if (i < g->adjlist[best_v].size() && g->adjlist[best_v][i] == w) {
                 ++i;
                 continue;
-            } else if (orig_w == best_orig_v) {
+            } else if (w == best_v) {
                 continue;
             }
-            unset_bit(new_available_classes_bitset.data() + orig_w * domain_num_words, orig_colour);
+            unset_bit(new_available_classes_bitset.data() + w * domain_num_words, colour);
             // We don't need to check for domain wipeout here, since any domain that was unit
             // would have been instantiated in the unit-propagation step.
         }
 
-        solution_colour_vtx(C, best_orig_v, orig_colour, new_available_classes_bitset.data(), new_num_colours_assigned_to_vertex.data(), domain_num_words, f);
-        expand(original_g, C, incumbent, level+1, expand_call_count, expand_call_limit,
+        solution_colour_vtx(C, best_v, colour, new_available_classes_bitset.data(), new_num_colours_assigned_to_vertex.data(), domain_num_words, f);
+        expand(g, C, incumbent, level+1, expand_call_count, expand_call_limit,
                 num_colours, new_available_classes_bitset.data(), new_num_colours_assigned_to_vertex.data(), domain_num_words, f);
         solution_pop_vtx(C);
 
-        if (incumbent->size == original_g->n * f)
+        if (incumbent->size == g->n * f)
             break;
 
         if (colour_is_in_all_domains)
@@ -321,37 +321,37 @@ void expand(struct Graph *original_g, struct Solution *C,
     solution_resize(C, C_sz_before_unit_prop);
 }
 
-void solve(struct Graph *original_g, unsigned long long *expand_call_count, unsigned long long expand_call_limit,
+void solve(ColouringGraph *g, unsigned long long *expand_call_count, unsigned long long expand_call_limit,
         struct Solution *incumbent, int num_colours, int f)
 {
     struct Solution C;
-    init_Solution(&C, original_g->n);
+    init_Solution(&C, g->n);
     int domain_num_words = (num_colours + BITS_PER_WORD - 1) / BITS_PER_WORD;
-    std::vector<unsigned long long> available_classes_bitset(original_g->n * domain_num_words);
-    for (int i=0; i<original_g->n; i++) {
+    std::vector<unsigned long long> available_classes_bitset(g->n * domain_num_words);
+    for (int i=0; i<g->n; i++) {
         set_first_n_bits(available_classes_bitset.data() + i * domain_num_words, num_colours);
     }
-    std::vector<int> num_colours_assigned_to_vertex(original_g->n);
-    expand(original_g, &C, incumbent, 0, expand_call_count, expand_call_limit,
+    std::vector<int> num_colours_assigned_to_vertex(g->n);
+    expand(g, &C, incumbent, 0, expand_call_count, expand_call_limit,
             num_colours, available_classes_bitset.data(), num_colours_assigned_to_vertex.data(), domain_num_words, f);
     destroy_Solution(&C);
 }
 
 // FIXME
-bool is_solution_valid(struct Graph *original_g, struct Solution *solution,
+bool is_solution_valid(ColouringGraph *g, struct Solution *solution,
         int num_colours)
 {
-    for (int i=0; i<original_g->n; i++)
+    for (int i=0; i<g->n; i++)
         for (int j=0; j<i; j++)
-            if (original_g->adj_matrix[i][j] && solution->vtx_colour[i] == solution->vtx_colour[j])
+            if (g->adj_matrix[i][j] && solution->vtx_colour[i] == solution->vtx_colour[j])
                 return false;
-    for (int i=0; i<original_g->n; i++)
+    for (int i=0; i<g->n; i++)
         if (solution->vtx_colour[i] < 0 || solution->vtx_colour[i] >= num_colours)
             return false;
     return true;
 }
 
-std::vector<int> randomised_vertex_order(const Graph & g, unsigned seed)
+std::vector<int> randomised_vertex_order(const ColouringGraph & g, unsigned seed)
 {
     srand(seed);
 
@@ -366,12 +366,12 @@ std::vector<int> randomised_vertex_order(const Graph & g, unsigned seed)
     return vv;
 }
 
-int find_colouring_number(const Graph & g, int f)
+int find_colouring_number(const ColouringGraph & g, int f)
 {
     unsigned rng_seed = 0;
 
     std::vector<int> vv = randomised_vertex_order(g, rng_seed);
-    struct Graph sorted_g = induced_subgraph(&g, vv);
+    ColouringGraph sorted_g = induced_subgraph(&g, vv);
 
     unsigned long long expand_call_limit = 1000;
     int num_colours = 0;
