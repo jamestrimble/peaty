@@ -118,7 +118,7 @@ struct SparseGraph
             int new_v = old_to_new_vtx[old_v];
             for (int old_w : adjlist[old_v]) {
                 if (old_w > old_v)
-                    break;
+                    continue;
                 int new_w = old_to_new_vtx[old_w];
                 if (new_w != -1)
                     subgraph.remove_edge(new_v, new_w);
@@ -150,7 +150,7 @@ struct SparseGraph
             int new_v = old_to_new_vtx[old_v];
             for (int old_w : adjlist[old_v]) {
                 if (old_w > old_v)
-                    break;
+                    continue;
                 int new_w = old_to_new_vtx[old_w];
                 if (new_w != -1)
                     subgraph.add_edge(new_v, new_w);
