@@ -1,6 +1,6 @@
 GC2_HEADERS = vc_solver/graph_colour_solver.h
-GC2_C_FILES = simple-colourer/graph_colour.c \
-              vc_solver/graph_colour_solver.c
+GC2_C_FILES = simple-colourer/graph_colour.cpp \
+              vc_solver/graph_colour_solver.cpp
 
 CPPFLAGS = -Wall -Wno-unused-function -pthread
 VC_HEADERS = \
@@ -15,14 +15,14 @@ VC_HEADERS = \
              vc_solver/params.h \
              vc_solver/graph_colour_solver.h
 VC_C_FILES = \
-             vc_solver/graph.c \
-             vc_solver/util.c \
-             vc_solver/sparse_graph.c \
-             vc_solver/solve_mwc.c \
-             vc_solver/sequential_solver.c \
-             vc_solver/colourer.c \
-             vc_solver/root_node_processing.c \
-             vc_solver/graph_colour_solver.c
+             vc_solver/graph.cpp \
+             vc_solver/util.cpp \
+             vc_solver/sparse_graph.cpp \
+             vc_solver/solve_mwc.cpp \
+             vc_solver/sequential_solver.cpp \
+             vc_solver/colourer.cpp \
+             vc_solver/root_node_processing.cpp \
+             vc_solver/graph_colour_solver.cpp
 
 all: simple-colourer/graph_colour vc_solver/solve_vc
 
