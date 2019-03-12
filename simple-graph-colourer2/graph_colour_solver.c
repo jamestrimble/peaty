@@ -283,10 +283,11 @@ void expand(ColouringGraph *g, struct Solution *C,
     std::vector<unsigned long long> new_available_classes_bitset(g->n * domain_num_words);
     std::vector<int> new_num_colours_assigned_to_vertex(g->n);
 
-    while (!bitset_empty(domain_copy.data(), domain_num_words)) {
+    bool colour_is_in_all_domains;
+    do {
         int colour = first_set_bit(domain_copy.data(), domain_num_words);
         unset_bit(domain_copy.data(), colour);
-        bool colour_is_in_all_domains = test_bit(colours_in_all_domains.data(), colour);
+        colour_is_in_all_domains = test_bit(colours_in_all_domains.data(), colour);
         
         for (int i=0; i<g->n; i++)
             new_num_colours_assigned_to_vertex[i] = num_colours_assigned_to_vertex[i];
@@ -310,13 +311,9 @@ void expand(ColouringGraph *g, struct Solution *C,
         expand(g, C, incumbent, level+1, expand_call_count, expand_call_limit,
                 num_colours, new_available_classes_bitset.data(), new_num_colours_assigned_to_vertex.data(), domain_num_words, f);
         solution_pop_vtx(C);
-
-        if (incumbent->size == g->n * f)
-            break;
-
-        if (colour_is_in_all_domains)
-            break;
-    }
+    } while (incumbent->size < g->n * f &&
+             !colour_is_in_all_domains  &&
+             !bitset_empty(domain_copy.data(), domain_num_words));
 
     solution_resize(C, C_sz_before_unit_prop);
 }
