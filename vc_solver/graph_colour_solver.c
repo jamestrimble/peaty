@@ -192,10 +192,13 @@ int choose_branching_vertex(ColouringGraph *g, unsigned long long *available_cla
 void expand(ColouringGraph *g, struct Solution *C,
         struct Solution *incumbent, int level, unsigned long long *expand_call_count, unsigned long long expand_call_limit,
         int num_colours, unsigned long long *available_classes_bitset,
-        int *num_colours_assigned_to_vertex, int domain_num_words, int f)
+        int *num_colours_assigned_to_vertex, int domain_num_words, int f, std::atomic_bool & terminate_early)
 {
     (*expand_call_count)++;
     if (*expand_call_count >= expand_call_limit)
+        return;
+
+    if (terminate_early.load())
         return;
 
     if (C->size == g->n * f) {
@@ -290,7 +293,7 @@ void expand(ColouringGraph *g, struct Solution *C,
 
         solution_colour_vtx(C, best_v, colour, new_available_classes_bitset.data(), new_num_colours_assigned_to_vertex.data(), domain_num_words, f);
         expand(g, C, incumbent, level+1, expand_call_count, expand_call_limit,
-                num_colours, new_available_classes_bitset.data(), new_num_colours_assigned_to_vertex.data(), domain_num_words, f);
+                num_colours, new_available_classes_bitset.data(), new_num_colours_assigned_to_vertex.data(), domain_num_words, f, terminate_early);
         solution_pop_vtx(C);
     } while (incumbent->size < g->n * f &&
              !colour_is_in_all_domains  &&
@@ -300,7 +303,7 @@ void expand(ColouringGraph *g, struct Solution *C,
 }
 
 void solve(ColouringGraph *g, unsigned long long *expand_call_count, unsigned long long expand_call_limit,
-        struct Solution *incumbent, int num_colours, int f)
+        struct Solution *incumbent, int num_colours, int f, std::atomic_bool & terminate_early)
 {
     struct Solution C(g->n, f);
     int domain_num_words = (num_colours + BITS_PER_WORD - 1) / BITS_PER_WORD;
@@ -310,7 +313,7 @@ void solve(ColouringGraph *g, unsigned long long *expand_call_count, unsigned lo
     }
     std::vector<int> num_colours_assigned_to_vertex(g->n);
     expand(g, &C, incumbent, 0, expand_call_count, expand_call_limit,
-            num_colours, available_classes_bitset.data(), num_colours_assigned_to_vertex.data(), domain_num_words, f);
+            num_colours, available_classes_bitset.data(), num_colours_assigned_to_vertex.data(), domain_num_words, f, terminate_early);
 }
 
 // FIXME
@@ -346,7 +349,7 @@ std::vector<int> randomised_vertex_order(const ColouringGraph & g, unsigned seed
     return vv;
 }
 
-int find_colouring_number(const ColouringGraph & g, int f)
+int find_colouring_number(const ColouringGraph & g, int f, std::atomic_bool & terminate_early)
 {
     unsigned rng_seed = 0;
 
@@ -362,7 +365,10 @@ int find_colouring_number(const ColouringGraph & g, int f)
 
         unsigned long long expand_call_count = 0;
         while (true) {
-            solve(&sorted_g, &expand_call_count, expand_call_limit, &clq, num_colours, f);
+            if (terminate_early.load())
+                return -1;
+
+            solve(&sorted_g, &expand_call_count, expand_call_limit, &clq, num_colours, f, terminate_early);
             if (expand_call_count < expand_call_limit)
                 break;
             clq.size = 0;

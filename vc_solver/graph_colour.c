@@ -113,7 +113,8 @@ int main(int argc, char** argv)
 
     struct ColouringGraph g = readColouringGraph(arguments.filename);
 
-    int colouring_number = find_colouring_number(g, arguments.fractional_level);
+    std::atomic_bool terminate_early(true);
+    int colouring_number = find_colouring_number(g, arguments.fractional_level, terminate_early);
 
     printf("%d-fold colouring number is %d\n", arguments.fractional_level, colouring_number);
 }

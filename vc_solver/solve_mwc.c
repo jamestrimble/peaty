@@ -25,7 +25,6 @@ using std::condition_variable;
 using std::cv_status;
 using std::function;
 using std::mutex;
-using std::thread;
 using std::unique_lock;
 
 using std::chrono::seconds;
@@ -258,13 +257,21 @@ auto find_vertex_cover_of_subgraph(const SparseGraph & g, vector<int> component,
         for (int w : subgraph.adjlist[v])
             if (int(v) < w)
                 cg.add_edge(v, w);
-    int upper_bound_from_colouring = find_colouring_number(cg, 2) / 2;
-    std::cout << "c Upper bound from colouring: " << upper_bound_from_colouring << std::endl;
+    std::atomic_bool terminate_colouring_early(false);
+    std::atomic_int upper_bound_from_colouring(-1);
 
-    std::atomic_int ind_set_upper_bound(upper_bound_from_colouring);
+    std::thread colouring_thread([&cg, &terminate_colouring_early, &upper_bound_from_colouring](){
+                int fractional_colouring_number = find_colouring_number(cg, 2, terminate_colouring_early);
+                upper_bound_from_colouring = fractional_colouring_number == -1 ? -1 : fractional_colouring_number / 2;
+            });
+
     VtxList independent_set(g.n);
     long search_node_count = 0;
-    sequential_mwc(subgraph, params, independent_set, search_node_count, ind_set_upper_bound);
+
+    sequential_mwc(subgraph, params, independent_set, search_node_count, upper_bound_from_colouring);
+    terminate_colouring_early = true;
+    colouring_thread.join();
+
     vector<bool> vtx_is_in_ind_set(subgraph.n);
     for (int v : independent_set.vv) {
         vtx_is_in_ind_set[v] = true;

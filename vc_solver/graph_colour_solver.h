@@ -1,3 +1,4 @@
+#include <atomic>
 #include <vector>
 
 struct ColouringGraph {
@@ -33,4 +34,4 @@ struct Solution {
 //bool is_solution_valid(struct ColouringGraph *g, struct Solution *solution,
 //        int num_colours);
 
-int find_colouring_number(const ColouringGraph & g, int f);
+int find_colouring_number(const ColouringGraph & g, int f, std::atomic_bool & terminate_early);
