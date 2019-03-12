@@ -110,6 +110,8 @@ SparseGraph readSparseGraphPaceFormat() {
                 else
                     edges.push_back({w-1, v-1});
                 edges_read++;
+                if (edges_read == medges)
+                    break;
             } else if (token == "p") {
                 long n, m;
                 if (!(line_stream >> token) || token != "td" || !(line_stream >> n) || !(line_stream >> m))

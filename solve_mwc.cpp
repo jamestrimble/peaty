@@ -345,7 +345,7 @@ int main(int argc, char** argv) {
         arguments.num_threads = 1;
 
     SparseGraph g =
-            arguments.file_format==FileFormat::Pace ? fastReadSparseGraphPaceFormat() :
+            arguments.file_format==FileFormat::Pace ? readSparseGraphPaceFormat() :
                                                       readSparseGraph();
 
     Params params {arguments.colouring_variant, arguments.max_sat_level, arguments.algorithm_num,
