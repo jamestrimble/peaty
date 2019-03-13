@@ -2,6 +2,6 @@
 
 seq -w 1 2 19 | while read x; do
     echo $x
-    diff <(python solver.py sample-instances/*0$x* | grep -v '^c') expected-results/0$x.out
+    diff <(./solve_vc < sample-instances/*0$x* | grep -v '^c') expected-results/0$x.out
     echo "-------------"
 done
