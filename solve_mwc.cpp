@@ -136,13 +136,55 @@ struct Result
     Result(const SparseGraph & g) : vertex_cover(g.n), search_node_count(0) {}
 };
 
+struct Reduction
+{
+    virtual void unwind(vector<bool> & in_cover) = 0;
+    virtual ~Reduction() {}
+};
+
 // a list of tuples (v, w, x), where v is the vertex of deg 2,
 // w is the kept neighbour and x is the removed neighbour
-struct Deg2Reduction
+struct Deg2Reduction : public Reduction
 {
     int v;
     int w;
     int x;
+
+    Deg2Reduction(int v, int w, int x) : v(v), w(w), x(x) {}
+
+    void unwind(vector<bool> & in_cover)
+    {
+        if (in_cover[w]) {
+            in_cover[x] = true;
+        } else {
+            in_cover[v] = true;
+        }
+    }
+
+    ~Deg2Reduction() {}
+};
+
+// a list of tuples (v, w, x, y), where v is the vertex of deg 3,
+// and w and x are the kept neighbours
+struct Deg3Reduction : public Reduction
+{
+    int v;
+    int w;
+    int x;
+    int y;
+
+    Deg3Reduction(int v, int w, int x, int y) : v(v), w(w), x(x), y(y) {}
+
+    void unwind(vector<bool> & in_cover)
+    {
+        if (in_cover[w] && in_cover[x]) {
+            in_cover[y] = true;
+        } else {
+            in_cover[v] = true;
+        }
+    }
+
+    ~Deg3Reduction() {}
 };
 
 bool isolated_vertex_removal(SparseGraph & g,
@@ -183,9 +225,8 @@ auto remove_from_adj_list(SparseGraph & g, int v, int w)
     lst.erase(std::find(lst.begin(), lst.end(), w));
 }
 
-bool vertex_folding(SparseGraph & g,
-        vector<bool> & in_cover, vector<bool> & deleted,
-        vector<Deg2Reduction> & deg_2_reductions)
+bool vertex_folding(SparseGraph & g, vector<bool> & deleted,
+        vector<std::unique_ptr<Reduction>> & reductions)
 {
     bool made_a_change = false;
 
@@ -207,8 +248,91 @@ bool vertex_folding(SparseGraph & g,
                 g.adjlist[x].clear();
                 deleted[v] = true;
                 deleted[x] = true;
-                deg_2_reductions.push_back({int(v), w, x});
+                reductions.push_back(std::make_unique<Deg2Reduction>(v, w, x));
                 made_a_change = true;
+            }
+        }
+    }
+    return made_a_change;
+}
+
+bool do_deg_3_reductions(SparseGraph & g, vector<bool> & in_cover, vector<bool> & deleted,
+        vector<std::unique_ptr<Reduction>> & reductions)
+{
+    bool made_a_change = false;
+
+    // Try to find vertex v with three neighbours w, x, and y, such that only
+    // w and x are adjacent.  We can then delete v, and y, adding the neighbours
+    // of y other than x to the adjacency lists of both w and x.
+    for (unsigned v=0; v<g.n; v++) {
+        if (g.adjlist[v].size() == 3) {
+            int w = g.adjlist[v][0];
+            int x = g.adjlist[v][1];
+            int y = g.adjlist[v][2];
+
+            bool edge_wx_exists = g.has_edge(w, x);
+            bool edge_xy_exists = g.has_edge(x, y);
+            bool edge_yw_exists = g.has_edge(y, w);
+
+            if (edge_wx_exists + edge_xy_exists + edge_yw_exists == 1) {
+                if (edge_xy_exists) {
+                    std::swap(y, w);
+                } else if (edge_yw_exists) {
+                    std::swap(y, x);
+                }
+                remove_from_adj_list(g, w, v);
+                remove_from_adj_list(g, x, v);
+                remove_from_adj_list(g, y, v);
+                for (int u : g.adjlist[y]) {
+                    remove_from_adj_list(g, u, y);
+                    if (!g.has_edge(u, w))
+                        g.add_edge(u, w);
+                    if (!g.has_edge(u, x))
+                        g.add_edge(u, x);
+                }
+                g.adjlist[v].clear();
+                g.adjlist[y].clear();
+                deleted[v] = true;
+                deleted[y] = true;
+                reductions.push_back(std::make_unique<Deg3Reduction>(v, w, x, y));
+                made_a_change = true;
+            }
+        }
+    }
+    return made_a_change;
+}
+
+// If there is a vertex v with a neighbour x who is adjacent to all of v's other neighbours,
+// it's safe to assume that x is in the vertex cover.
+bool do_NAMEME_reductions(SparseGraph & g, vector<bool> & in_cover, vector<bool> & deleted,
+        vector<std::unique_ptr<Reduction>> & reductions)
+{
+    bool made_a_change = false;
+
+    for (unsigned v=0; v<g.n; v++) {
+        if (g.adjlist[v].size() > 2) {
+            for (int w : g.adjlist[v]) {
+                int num_edges = 0;
+                for (int x : g.adjlist[v]) {
+                    if (x != w) {
+                        if (g.has_edge(x, w)) {
+                            ++num_edges;
+                        } else {
+                            // for efficiency.  Maybe this can be tidied?
+                            break;
+                        }
+                    }
+                }
+                if (num_edges == g.adjlist[v].size() - 1) {
+                    for (int u : g.adjlist[w]) {
+                        remove_from_adj_list(g, u, w);
+                    }
+                    g.adjlist[w].clear();
+                    deleted[w] = true;
+                    in_cover[w] = true;
+                    made_a_change = true;
+                    break;
+                }
             }
         }
     }
@@ -291,12 +415,14 @@ auto mwc(SparseGraph & g, const Params & params) -> Result
     vector<bool> in_cover = g.vertex_has_loop;
     g.remove_edges_incident_to_loopy_vertices();
 
-    vector<Deg2Reduction> deg_2_reductions;
+    vector<std::unique_ptr<Reduction>> reductions;
 
     while (true) {
         bool a = isolated_vertex_removal(g, in_cover, deleted);
-        bool b = vertex_folding(g, in_cover, deleted, deg_2_reductions);
-        if (!a && !b)
+        bool b = vertex_folding(g, deleted, reductions);
+        bool c = do_deg_3_reductions(g, in_cover, deleted, reductions);
+        bool d = do_NAMEME_reductions(g, in_cover, deleted, reductions);
+        if (!a && !b && !c && !d)
             break;
     };
 
@@ -313,22 +439,18 @@ auto mwc(SparseGraph & g, const Params & params) -> Result
 
     Result result(g);
     for (auto & component : components) {
+        std::cout << "c COMPONENT " << component.size() << std::endl;
         auto vertex_cover_of_subgraph = find_vertex_cover_of_subgraph(g, component, params);
         for (int v : vertex_cover_of_subgraph) {
             in_cover[v] = true;
         }
     }
 
-    while (!deg_2_reductions.empty()) {
-        auto r = deg_2_reductions.back();
-        deg_2_reductions.pop_back();
-        if (in_cover[r.w]) {
-            in_cover[r.x] = true;
-        } else {
-            in_cover[r.v] = true;
-        }
+    while (!reductions.empty()) {
+        reductions.back()->unwind(in_cover);
+        reductions.pop_back();
     }
-//    sequential_mwc(g, params, result.clq, result.search_node_count);
+
     for (unsigned v=0; v<g.n; v++) {
         if (in_cover[v]) {
             result.vertex_cover.push_vtx(v, 1);
