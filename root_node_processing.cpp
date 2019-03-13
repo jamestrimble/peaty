@@ -7,7 +7,7 @@
 #include <thread>
 #include <vector>
 
-vector<int> initialise(const SparseGraph & g, VtxList & incumbent) {
+vector<int> initialise(const SparseGraph & g) {
 //    printf("Starting init\n");
     vector<int> vv;
 
