@@ -6,7 +6,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wno-unused-function -pthread")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-function -pthread")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
@@ -28,3 +28,6 @@ set_target_properties(solve_vc
     CXX_EXTENSIONS OFF
     CXX_STANDARD_REQUIRED ON
 )
+
+# MINI_VERSION_ONLY add_definitions(-DWITHOUT_COLOURING_UPPER_BOUND)
+

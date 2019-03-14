@@ -1,0 +1,13 @@
+rm -rf pace-challenge-full-version
+rm -rf pace-challenge-mini-version
+
+mkdir pace-challenge-full-version
+mkdir pace-challenge-mini-version
+
+cp *.cpp *.h CMakeLists.txt pace-challenge-full-version
+cp *.cpp *.h pace-challenge-mini-version
+
+sed 's/# MINI_VERSION_ONLY //' CMakeLists.txt > pace-challenge-mini-version/CMakeLists.txt
+
+(cd pace-challenge-full-version && cmake . && make -j8 && tar czvf solve_vc.tgz *.cpp *.h CMakeLists.txt)
+(cd pace-challenge-mini-version && cmake . && make -j8 && tar czvf solve_vc.tgz *.cpp *.h CMakeLists.txt)

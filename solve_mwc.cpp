@@ -384,17 +384,21 @@ auto find_vertex_cover_of_subgraph(const SparseGraph & g, vector<int> component,
     std::atomic_bool terminate_colouring_early(false);
     std::atomic_int upper_bound_from_colouring(-1);
 
+#ifndef WITHOUT_COLOURING_UPPER_BOUND
     std::thread colouring_thread([&cg, &terminate_colouring_early, &upper_bound_from_colouring](){
                 int fractional_colouring_number = find_colouring_number(cg, 2, terminate_colouring_early);
                 upper_bound_from_colouring = fractional_colouring_number == -1 ? -1 : fractional_colouring_number / 2;
             });
+#endif
 
     VtxList independent_set(g.n);
     long search_node_count = 0;
 
     sequential_mwc(subgraph, params, independent_set, search_node_count, upper_bound_from_colouring);
+#ifndef WITHOUT_COLOURING_UPPER_BOUND
     terminate_colouring_early = true;
     colouring_thread.join();
+#endif
 
     vector<bool> vtx_is_in_ind_set(subgraph.n);
     for (int v : independent_set.vv) {
