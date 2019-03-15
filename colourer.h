@@ -18,6 +18,7 @@ struct Clause {
     vector<int> vv;
     long weight;
     long remaining_wt;
+    unsigned long long sorting_score;
 };
 
 struct ListOfClauses {
@@ -179,6 +180,13 @@ public:
             clause.weight = class_min_wt;
             cc.size++;
         }
+
+        for (unsigned long long i=0; i<cc.size; i++) {
+            auto & c = cc.clause[i];
+            c.sorting_score = ((unsigned long long)c.vv.size() << 32) - i;
+        }
+        std::sort(cc.clause.begin(), std::next(cc.clause.begin(), cc.size),
+                [](auto & a, auto & b){return a.sorting_score > b.sorting_score;});
 
         long improvement = unit_propagator.unit_propagate(cc, bound-target, P_bitset);
 
