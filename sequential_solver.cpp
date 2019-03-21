@@ -6,8 +6,11 @@
 #include "root_node_processing.h"
 #include "params.h"
 
+#include <iostream>  // TODO: don't include this
+
 #include <algorithm>
 #include <memory>
+#include <random>
 #include <vector>
 
 auto update_incumbent_if_necessary(VtxList & C, VtxList & incumbent, const Params & params)
@@ -82,10 +85,144 @@ public:
     }
 };
 
+class LocalSearcher
+{
+    const SparseGraph & g;
+    vector<int> num_conflicts;
+    vector<bool> ind_set;
+    int ind_set_size;
+    int tabu_duration;
+    int time;
+    vector<int> last_time_changed;
+    vector<int> incumbent;
+    std::mt19937 mt19937;
+
+public:
+    LocalSearcher(const SparseGraph & g) : g(g), num_conflicts(g.n), ind_set(g.n),
+            tabu_duration(g.n / 10), time(tabu_duration + 1), last_time_changed(g.n) {}
+    void reset()
+    {
+        std::fill(num_conflicts.begin(), num_conflicts.end(), 0);
+        std::fill(ind_set.begin(), ind_set.end(), false);
+        std::fill(last_time_changed.begin(), last_time_changed.end(), 0);
+        ind_set_size = 0;
+    }
+
+    void add_to_ind_set(int v)
+    {
+        ind_set[v] = true;
+        ++ind_set_size;
+        last_time_changed[v] = time;
+        for (int w : g.adjlist[v])
+            ++num_conflicts[w];
+    }
+
+    void remove_from_ind_set(int v)
+    {
+        ind_set[v] = false;
+        --ind_set_size;
+        for (int w : g.adjlist[v])
+            --num_conflicts[w];
+    }
+
+    bool permitted_by_tabu_rule(int v)
+    {
+        return time > last_time_changed[v] + tabu_duration;
+    }
+
+    void greedily_add_to_is()
+    {
+        vector<int> vertices_without_conflict;
+        for (unsigned i=0; i<g.n; i++)
+            if (!ind_set[i] && num_conflicts[i] == 0)
+                vertices_without_conflict.push_back(i);
+
+        std::shuffle(vertices_without_conflict.begin(), vertices_without_conflict.end(), mt19937);
+
+        for (int v : vertices_without_conflict)
+            if (num_conflicts[v] == 0 && permitted_by_tabu_rule(v))
+                add_to_ind_set(v);
+
+        if (ind_set_size > int(incumbent.size())) {
+            incumbent.clear();
+            for (unsigned i=0; i<g.n; i++) {
+                if (ind_set[i]) {
+                    incumbent.push_back(i);
+                }
+            }
+            std::cout << "incumbent " << incumbent.size() << std::endl;
+        }
+    }
+
+    void do_swap_or_deletion()
+    {
+        vector<int> vertices_with_one_conflict;
+
+        // occasionally, do a drop even if a swap is possible
+        std::uniform_int_distribution<> distrib0(0, 20);
+        if (distrib0(mt19937)) {
+            for (unsigned i=0; i<g.n; i++)
+                if (num_conflicts[i] == 1 && permitted_by_tabu_rule(i))
+                    vertices_with_one_conflict.push_back(i);
+        }
+
+        if (vertices_with_one_conflict.empty()) {
+            // do a drop
+            vector<int> vertices_in_is;
+            for (unsigned i=0; i<g.n; i++)
+                if (ind_set[i])
+                    vertices_in_is.push_back(i);
+            if (!vertices_in_is.empty()) {
+                std::uniform_int_distribution<> distrib(0, vertices_in_is.size() - 1);
+                int v = vertices_in_is[distrib(mt19937)];
+                remove_from_ind_set(v);
+            }
+        } else {
+            // do a swap
+            std::uniform_int_distribution<> distrib(0, vertices_with_one_conflict.size() - 1);
+            int v = vertices_with_one_conflict[distrib(mt19937)];
+            for (int w : g.adjlist[v]) {
+                if (ind_set[w]) {
+                    remove_from_ind_set(w);
+                    add_to_ind_set(v);
+                    break;
+                }
+            }
+        }
+    }
+
+    int find_lower_bound()
+    {
+        int local_time_limit = 1000;
+        int iter_num = 0;
+        while (time < 10000000) {
+            int local_time = 0;
+            while (local_time < local_time_limit) {
+                greedily_add_to_is();
+                do_swap_or_deletion();
+                ++local_time;
+                ++time;
+                if (0 == (time % 100000)) {
+                    std::cout << "time " << time << std::endl;
+                }
+            }
+            local_time_limit = local_time_limit + local_time_limit / 100;
+            reset();
+            ++iter_num;
+        }
+
+        return incumbent.size();
+    }
+};
+
 auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumbent, long & search_node_count,
         std::atomic_int & ind_set_upper_bound) -> void
 {
     VtxList C(g.n);
+
+    LocalSearcher ls(g);
+    int lower_bound = ls.find_lower_bound();
+    std::cout << "Lower bound " << lower_bound << std::endl;
 
     auto vv0 = initialise(g);
 //    printf("Initial incumbent weight %ld\n", incumbent.total_wt);
@@ -108,6 +245,7 @@ auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumb
         ++target;
 
     while (true) {
+        std::cout << "target " << target << std::endl;
         incumbent.total_wt = target - 1;
         MWC(ordered_subgraph, params, incumbent, *colourer).run(C, search_node_count, ind_set_upper_bound);
         if (incumbent.total_wt == target)
