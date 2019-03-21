@@ -201,6 +201,7 @@ public:
             while (local_time < local_time_limit) {
                 greedily_add_to_is();
                 do_swap_or_deletion();
+                do_swap_or_deletion();
                 if (ind_set_size > local_best) {
                     local_best = ind_set_size;
                     local_time = 0;
