@@ -85,10 +85,51 @@ public:
     }
 };
 
+class FastSet
+{
+    vector<bool> in_set;
+    vector<int> position_in_elements_list;
+public:
+    vector<int> elements;
+    FastSet(int capacity) : in_set(capacity), position_in_elements_list(capacity) {}
+
+    void add(int x)
+    {
+        if (in_set[x])
+            return;
+        in_set[x] = true;
+        position_in_elements_list[x] = elements.size();
+        elements.push_back(x);
+    }
+
+    void remove(int x)
+    {
+        if (!in_set[x])
+            return;
+        int pos = position_in_elements_list[x];
+        std::swap(elements.back(), elements[pos]);
+        position_in_elements_list[elements[pos]] = pos;
+        elements.pop_back();
+        in_set[x] = false;
+    }
+
+    bool contains(int x)
+    {
+        return in_set[x];
+    }
+
+    unsigned size()
+    {
+        return elements.size();
+    }
+};
+
 class LocalSearcher
 {
     const SparseGraph & g;
     vector<int> num_conflicts;
+    FastSet set_of_vv_with_no_conflicts;
+    FastSet set_of_vv_with_one_conflict;
     vector<bool> ind_set;
     int ind_set_size;
     int tabu_duration;
@@ -98,22 +139,41 @@ class LocalSearcher
     std::mt19937 mt19937;
 
 public:
-    LocalSearcher(const SparseGraph & g) : g(g), num_conflicts(g.n), ind_set(g.n),
-            tabu_duration(10), time(tabu_duration + 1), last_time_changed(g.n) {}
+    LocalSearcher(const SparseGraph & g) : g(g), num_conflicts(g.n),
+            set_of_vv_with_no_conflicts(g.n), set_of_vv_with_one_conflict(g.n), ind_set(g.n),
+            tabu_duration(10), time(tabu_duration + 1), last_time_changed(g.n)
+    {
+        for (unsigned i=0; i<g.n; i++) {
+            set_of_vv_with_no_conflicts.add(i);
+            set_of_vv_with_one_conflict.remove(i);
+        }
+    }
+
     void reset()
     {
         std::fill(num_conflicts.begin(), num_conflicts.end(), 0);
         std::fill(ind_set.begin(), ind_set.end(), false);
         std::fill(last_time_changed.begin(), last_time_changed.end(), 0);
         ind_set_size = 0;
+        for (unsigned i=0; i<g.n; i++) {
+            set_of_vv_with_no_conflicts.add(i);
+            set_of_vv_with_one_conflict.remove(i);
+        }
     }
 
     void add_to_ind_set(int v)
     {
         ind_set[v] = true;
         ++ind_set_size;
-        for (int w : g.adjlist[v])
+        for (int w : g.adjlist[v]) {
+            if (num_conflicts[w] == 0) {
+                set_of_vv_with_no_conflicts.remove(w);
+                set_of_vv_with_one_conflict.add(w);
+            } else if (num_conflicts[w] == 1) {
+                set_of_vv_with_one_conflict.remove(w);
+            }
             ++num_conflicts[w];
+        }
     }
 
     void remove_from_ind_set(int v)
@@ -121,8 +181,15 @@ public:
         last_time_changed[v] = time;
         ind_set[v] = false;
         --ind_set_size;
-        for (int w : g.adjlist[v])
+        for (int w : g.adjlist[v]) {
             --num_conflicts[w];
+            if (num_conflicts[w] == 0) {
+                set_of_vv_with_no_conflicts.add(w);
+                set_of_vv_with_one_conflict.remove(w);
+            } else if (num_conflicts[w] == 1) {
+                set_of_vv_with_one_conflict.add(w);
+            }
+        }
     }
 
     bool permitted_by_tabu_rule(int v)
@@ -132,10 +199,13 @@ public:
 
     void greedily_add_to_is()
     {
+        if (int(set_of_vv_with_no_conflicts.size()) == ind_set_size)
+            return;
+
         vector<int> vertices_without_conflict;
-        for (unsigned i=0; i<g.n; i++)
-            if (!ind_set[i] && num_conflicts[i] == 0)
-                vertices_without_conflict.push_back(i);
+        for (int v : set_of_vv_with_no_conflicts.elements)
+            if (!ind_set[v] && permitted_by_tabu_rule(v))
+                vertices_without_conflict.push_back(v);
 
         std::shuffle(vertices_without_conflict.begin(), vertices_without_conflict.end(), mt19937);
 
@@ -161,9 +231,9 @@ public:
         // occasionally, do a drop even if a swap is possible
         std::uniform_int_distribution<> distrib0(0, 20);
         if (distrib0(mt19937)) {
-            for (unsigned i=0; i<g.n; i++)
-                if (num_conflicts[i] == 1 && permitted_by_tabu_rule(i))
-                    vertices_with_one_conflict.push_back(i);
+            for (int v : set_of_vv_with_one_conflict.elements)
+                if (permitted_by_tabu_rule(v))
+                    vertices_with_one_conflict.push_back(v);
         }
 
         if (vertices_with_one_conflict.empty()) {
