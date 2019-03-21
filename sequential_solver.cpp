@@ -99,7 +99,7 @@ class LocalSearcher
 
 public:
     LocalSearcher(const SparseGraph & g) : g(g), num_conflicts(g.n), ind_set(g.n),
-            tabu_duration(g.n / 10), time(tabu_duration + 1), last_time_changed(g.n) {}
+            tabu_duration(10), time(tabu_duration + 1), last_time_changed(g.n) {}
     void reset()
     {
         std::fill(num_conflicts.begin(), num_conflicts.end(), 0);
@@ -112,13 +112,13 @@ public:
     {
         ind_set[v] = true;
         ++ind_set_size;
-        last_time_changed[v] = time;
         for (int w : g.adjlist[v])
             ++num_conflicts[w];
     }
 
     void remove_from_ind_set(int v)
     {
+        last_time_changed[v] = time;
         ind_set[v] = false;
         --ind_set_size;
         for (int w : g.adjlist[v])
@@ -193,20 +193,25 @@ public:
 
     int find_lower_bound()
     {
-        int local_time_limit = 1000;
+        int local_time_limit = 5000;
         int iter_num = 0;
         while (time < 10000000) {
             int local_time = 0;
+            int local_best = 0;
             while (local_time < local_time_limit) {
                 greedily_add_to_is();
                 do_swap_or_deletion();
+                if (ind_set_size > local_best) {
+                    local_best = ind_set_size;
+                    local_time = 0;
+                }
                 ++local_time;
                 ++time;
                 if (0 == (time % 100000)) {
                     std::cout << "time " << time << std::endl;
                 }
             }
-            local_time_limit = local_time_limit + local_time_limit / 100;
+            local_time_limit = local_time_limit + local_time_limit / 1000;
             reset();
             ++iter_num;
         }
