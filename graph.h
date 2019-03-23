@@ -45,6 +45,11 @@ struct VtxList {
     {
         vv.reserve(capacity);
     }
+    auto clear() -> void
+    {
+        total_wt = 0;
+        vv.clear();
+    }
     auto push_vtx(int v, const Graph & g) -> void
     {
         vv.push_back(v);

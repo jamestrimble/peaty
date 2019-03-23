@@ -13,15 +13,6 @@
 #include <random>
 #include <vector>
 
-auto update_incumbent_if_necessary(VtxList & C, VtxList & incumbent, const Params & params)
-{
-    if (C.total_wt > incumbent.total_wt) {
-        incumbent = C;
-//        if (!params.quiet)
-//            printf("New incumbent of weight %ld\n", incumbent.total_wt);
-    }
-}
-
 class MWC {
     Graph & g;
     const Params params;
@@ -29,6 +20,19 @@ class MWC {
     VtxList & incumbent;
     vector<vector<unsigned long long>> branch_vv_bitsets;
     vector<vector<unsigned long long>> new_P_bitsets;
+    const vector<int> & vertex_numbers_in_original_graph;
+
+    auto update_incumbent_if_necessary(VtxList & C)
+    {
+        if (C.total_wt > incumbent.total_wt) {
+            incumbent = C;
+
+            for (unsigned i=0; i<incumbent.vv.size(); i++)
+                incumbent.vv[i] = vertex_numbers_in_original_graph[incumbent.vv[i]];
+
+            std::cout << "c TMP " << incumbent.total_wt << std::endl;
+        }
+    }
 
     void expand(VtxList& C, vector<unsigned long long> & P_bitset, long & search_node_count,
             std::atomic_int & ind_set_upper_bound)
@@ -36,7 +40,7 @@ class MWC {
         ++search_node_count;
 
         if (bitset_empty(P_bitset, g.numwords)) {
-            update_incumbent_if_necessary(C, incumbent, params);
+            update_incumbent_if_necessary(C);
             return;
         }
 
@@ -72,8 +76,10 @@ class MWC {
     }
 
 public:
-    MWC(Graph & g, const Params params, VtxList & incumbent, Colourer & colourer)
-            : g(g), params(params), colourer(colourer), incumbent(incumbent), branch_vv_bitsets(g.n), new_P_bitsets(g.n)
+    MWC(Graph & g, const Params params, VtxList & incumbent, Colourer & colourer,
+            const vector<int> & vertex_numbers_in_original_graph)
+            : g(g), params(params), colourer(colourer), incumbent(incumbent), branch_vv_bitsets(g.n), new_P_bitsets(g.n),
+              vertex_numbers_in_original_graph(vertex_numbers_in_original_graph)
     {
     }
 
@@ -135,13 +141,13 @@ class LocalSearcher
     int tabu_duration;
     int time;
     vector<int> last_time_changed;
-    vector<int> incumbent;
+    VtxList & incumbent;
     std::mt19937 mt19937;
 
 public:
-    LocalSearcher(const SparseGraph & g) : g(g), num_conflicts(g.n),
+    LocalSearcher(const SparseGraph & g, VtxList & incumbent) : g(g), num_conflicts(g.n),
             set_of_vv_with_no_conflicts(g.n), set_of_vv_with_one_conflict(g.n), ind_set(g.n),
-            tabu_duration(10), time(tabu_duration + 1), last_time_changed(g.n)
+            tabu_duration(10), time(tabu_duration + 1), last_time_changed(g.n), incumbent(incumbent)
     {
         for (unsigned i=0; i<g.n; i++) {
             set_of_vv_with_no_conflicts.add(i);
@@ -210,17 +216,17 @@ public:
         std::shuffle(vertices_without_conflict.begin(), vertices_without_conflict.end(), mt19937);
 
         for (int v : vertices_without_conflict)
-            if (num_conflicts[v] == 0 && (ind_set_size>=int(incumbent.size()) || permitted_by_tabu_rule(v)))
+            if (num_conflicts[v] == 0 && (ind_set_size>=int(incumbent.vv.size()) || permitted_by_tabu_rule(v)))
                 add_to_ind_set(v);
 
-        if (ind_set_size > int(incumbent.size())) {
+        if (ind_set_size > int(incumbent.vv.size())) {
             incumbent.clear();
             for (unsigned i=0; i<g.n; i++) {
                 if (ind_set[i]) {
-                    incumbent.push_back(i);
+                    incumbent.push_vtx(i, 1);
                 }
             }
-            std::cout << "incumbent " << incumbent.size() << std::endl;
+            std::cout << "incumbent " << incumbent.vv.size() << std::endl;
         }
     }
 
@@ -265,7 +271,7 @@ public:
     {
         int local_time_limit = 5000;
         int iter_num = 0;
-        while (time < 10000000) {
+        while (time < 1000000) {
             int local_time = 0;
             int local_best = 0;
             while (local_time < local_time_limit) {
@@ -287,7 +293,7 @@ public:
             ++iter_num;
         }
 
-        return incumbent.size();
+        return incumbent.vv.size();
     }
 };
 
@@ -296,7 +302,7 @@ auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumb
 {
     VtxList C(g.n);
 
-    LocalSearcher ls(g);
+    LocalSearcher ls(g, incumbent);
     int lower_bound = ls.find_lower_bound();
     std::cout << "Lower bound " << lower_bound << std::endl;
 
@@ -313,21 +319,6 @@ auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumb
     Graph ordered_subgraph = ordered_graph.complement_of_induced_subgraph(vv1);
     std::shared_ptr<Colourer> colourer = Colourer::create_colourer(ordered_subgraph, params);
 
-    vector<unsigned long long> branch_vv_bitset(ordered_subgraph.numwords); 
-    vector<unsigned long long> P_bitset(ordered_subgraph.numwords); 
-    set_first_n_bits(P_bitset, ordered_subgraph.n);
-    int target = 1;
-    while (colourer->colouring_bound(P_bitset, branch_vv_bitset, target))
-        ++target;
-
-    while (true) {
-        std::cout << "target " << target << std::endl;
-        incumbent.total_wt = target - 1;
-        MWC(ordered_subgraph, params, incumbent, *colourer).run(C, search_node_count, ind_set_upper_bound);
-        if (incumbent.total_wt == target)
-            break;
-        target--;
-    }
-    for (unsigned i=0; i<incumbent.vv.size(); i++)
-        incumbent.vv[i] = vv0[incumbent.vv[i]];
+    MWC(ordered_subgraph, params, incumbent, *colourer, vv0).run(
+            C, search_node_count, ind_set_upper_bound);
 }
