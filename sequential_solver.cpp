@@ -204,13 +204,13 @@ public:
 
         vector<int> vertices_without_conflict;
         for (int v : set_of_vv_with_no_conflicts.elements)
-            if (!ind_set[v] && permitted_by_tabu_rule(v))
+            if (!ind_set[v])
                 vertices_without_conflict.push_back(v);
 
         std::shuffle(vertices_without_conflict.begin(), vertices_without_conflict.end(), mt19937);
 
         for (int v : vertices_without_conflict)
-            if (num_conflicts[v] == 0 && permitted_by_tabu_rule(v))
+            if (num_conflicts[v] == 0 && (ind_set_size>=int(incumbent.size()) || permitted_by_tabu_rule(v)))
                 add_to_ind_set(v);
 
         if (ind_set_size > int(incumbent.size())) {
@@ -279,7 +279,7 @@ public:
                 ++local_time;
                 ++time;
                 if (0 == (time % 100000)) {
-                    std::cout << "time " << time << std::endl;
+                    std::cout << "c time " << time << std::endl;
                 }
             }
             local_time_limit = local_time_limit + local_time_limit / 1000;
