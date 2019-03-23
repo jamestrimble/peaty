@@ -388,10 +388,14 @@ auto find_vertex_cover_of_subgraph(const SparseGraph & g, vector<int> component,
     std::thread colouring_thread([&cg, &terminate_colouring_early, &upper_bound_from_colouring](){
                 // first, use colouring number
                 int colouring_number = find_colouring_number(cg, 1, terminate_colouring_early);
-                upper_bound_from_colouring = colouring_number == -1 ? -1 : colouring_number;
-                // then, find better bound using 2-fold colouring
-                int fractional_colouring_number = find_colouring_number(cg, 2, terminate_colouring_early);
-                upper_bound_from_colouring = fractional_colouring_number == -1 ? -1 : fractional_colouring_number / 2;
+                if (colouring_number != -1) {
+                    upper_bound_from_colouring = colouring_number;
+                    // then, find better bound using 2-fold colouring
+                    int fractional_colouring_number = find_colouring_number(cg, 2, terminate_colouring_early);
+                    if (fractional_colouring_number != -1) {
+                        upper_bound_from_colouring = fractional_colouring_number / 2;
+                    }
+                }
             });
 #endif
 
