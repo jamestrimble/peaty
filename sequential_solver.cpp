@@ -308,7 +308,6 @@ auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumb
 
     auto vv0 = initialise(g);
 //    printf("Initial incumbent weight %ld\n", incumbent.total_wt);
-    remove_vertices_with_closed_nd_wt_leq_incumbent(g, vv0, 0, incumbent.total_wt, 1);
     SparseGraph ordered_graph = g.induced_subgraph<SparseGraph>(vv0);
     ordered_graph.sort_adj_lists();
 
