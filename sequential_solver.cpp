@@ -209,9 +209,9 @@ public:
             }
             ++local_time;
             ++time;
-            if (0 == (time % 100000)) {
-                std::cout << "c time " << time << std::endl;
-            }
+//            if (0 == (time % 100000)) {
+//                std::cout << "c time " << time << std::endl;
+//            }
         }
         local_time_limit = local_time_limit + local_time_limit / 1000;
         reset();
