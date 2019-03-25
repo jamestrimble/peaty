@@ -376,15 +376,16 @@ auto find_vertex_cover_of_subgraph(const SparseGraph & g, vector<int> component,
     std::sort(component.begin(), component.end());
     SparseGraph subgraph = g.induced_subgraph<SparseGraph>(component);
 
+    std::atomic_bool terminate_colouring_early(false);
+    std::atomic_int upper_bound_from_colouring(-1);
+
+#ifndef WITHOUT_COLOURING_UPPER_BOUND
     ColouringGraph cg(subgraph.n);
     for (unsigned v=0; v<subgraph.n; v++)
         for (int w : subgraph.adjlist[v])
             if (int(v) < w)
                 cg.add_edge(v, w);
-    std::atomic_bool terminate_colouring_early(false);
-    std::atomic_int upper_bound_from_colouring(-1);
 
-#ifndef WITHOUT_COLOURING_UPPER_BOUND
     std::thread colouring_thread([&cg, &terminate_colouring_early, &upper_bound_from_colouring](){
                 // first, use colouring number
                 int colouring_number = find_colouring_number(cg, 1, terminate_colouring_early);
