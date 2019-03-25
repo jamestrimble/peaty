@@ -244,7 +244,7 @@ class MWC {
             std::atomic_int & ind_set_upper_bound)
     {
         ++search_node_count;
-        if (search_node_count > local_searcher.get_time()) {
+        if (g.n > 30 && search_node_count > local_searcher.get_time()) {
             local_searcher.search();
         }
 
@@ -306,8 +306,9 @@ auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumb
     VtxList C(g.n);
 
     LocalSearcher ls(g, incumbent);
-    for (int i=0; i<10; i++)
-        ls.search();
+    if (g.n > 30)  // don't bother with local search for very small graphs
+        for (int i=0; i<10; i++)
+            ls.search();
 
     auto vv0 = initialise(g);
 //    printf("Initial incumbent weight %ld\n", incumbent.total_wt);
