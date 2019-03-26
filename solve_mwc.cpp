@@ -302,6 +302,27 @@ bool do_deg_3_reductions(SparseGraph & g, vector<bool> & in_cover, vector<bool> 
     return made_a_change;
 }
 
+
+void check_adj_list_integrity(SparseGraph & g)
+{
+    for (unsigned v=0; v<g.n; v++) {
+        std::vector<bool> a(g.n);
+        for (int w : g.adjlist[v]) {
+            if (a[w]) {
+                std::cout << "Duplicate edge" << std::endl;
+                exit(1);
+            }
+            a[w] = true;
+            auto it = std::find(g.adjlist[w].begin(), g.adjlist[w].end(), v);
+            if (it == g.adjlist[w].end()) {
+                std::cout << "Graph error" << std::endl;
+                exit(1);
+            }
+        }
+    }
+}
+
+
 // If there is a vertex v with a neighbour x who is adjacent to all of v's other neighbours,
 // it's safe to assume that x is in the vertex cover.
 bool do_NAMEME_reductions(SparseGraph & g, vector<bool> & in_cover, vector<bool> & deleted,
@@ -376,6 +397,17 @@ auto find_vertex_cover_of_subgraph(const SparseGraph & g, vector<int> component,
     std::sort(component.begin(), component.end());
     SparseGraph subgraph = g.induced_subgraph<SparseGraph>(component);
 
+//    for (unsigned v=0; v<subgraph.n; v++) {
+//        for (int w : subgraph.adjlist[v]) {
+//            for (int u : subgraph.adjlist[v]) {
+//                std::cout << (subgraph.has_edge(w, u) ? "X " : ". ");
+//            }
+//            std::cout << std::endl;
+//        }
+//        std::cout << std::endl;
+//    }
+//    subgraph.print_dimacs_format();
+
     std::atomic_bool terminate_colouring_early(false);
     std::atomic_int upper_bound_from_colouring(-1);
 
@@ -438,6 +470,7 @@ auto mwc(SparseGraph & g, const Params & params) -> Result
         if (!a && !b && !c && !d)
             break;
     };
+    check_adj_list_integrity(g);
 
     vector<vector<int>> components = make_list_of_components(g);
 
