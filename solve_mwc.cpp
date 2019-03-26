@@ -187,6 +187,41 @@ struct Deg3Reduction : public Reduction
     ~Deg3Reduction() {}
 };
 
+struct BowTieReduction : public Reduction
+{
+    int v;
+    int a;
+    int b;
+    int c;
+    int d;
+
+    BowTieReduction(int v, int a, int b, int c, int d) : v(v), a(a), b(b), c(c), d(d) {}
+
+    void unwind(vector<bool> & in_cover)
+    {
+        if (!in_cover[a]) {
+            in_cover[c] = false;
+            in_cover[v] = true;
+        } else
+        if (!in_cover[b]) {
+            in_cover[d] = false;
+            in_cover[v] = true;
+        } else
+        if (!in_cover[c]) {
+            in_cover[b] = false;
+            in_cover[v] = true;
+        } else
+        if (!in_cover[d]) {
+            in_cover[a] = false;
+            in_cover[v] = true;
+        } else {
+            in_cover[v] = false;
+        }
+    }
+
+    ~BowTieReduction() {}
+};
+
 bool isolated_vertex_removal(SparseGraph & g,
         vector<bool> & in_cover, vector<bool> & deleted)
 {
@@ -360,6 +395,79 @@ bool do_NAMEME_reductions(SparseGraph & g, vector<bool> & in_cover, vector<bool>
     return made_a_change;
 }
 
+bool are_bow_tie(SparseGraph & g, const vector<int> & adjlist)
+{
+    for (int v : adjlist) {
+        int num_edges = 0;
+        for (int w : adjlist) {
+            if (v != w) {
+                if (g.has_edge(v, w)) {
+                    ++num_edges;
+                    if (num_edges > 1) {
+                        break;
+                    }
+                }
+            }
+        }
+        if (num_edges != 1) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool do_bow_tie_reductions(SparseGraph & g, vector<bool> & in_cover, vector<bool> & deleted,
+        vector<std::unique_ptr<Reduction>> & reductions)
+{
+    bool made_a_change = false;
+
+    for (unsigned v=0; v<g.n; v++) {
+        if (g.adjlist[v].size() == 4) {
+            auto & lst_v = g.adjlist[v];
+            if (are_bow_tie(g, lst_v)) {
+                int a = lst_v[0];
+                int b = lst_v[1];
+                int c = lst_v[2];
+                int d = lst_v[3];
+                if (g.has_edge(a, c)) {
+                    std::swap(b, c);
+                } else if (g.has_edge(a, d)) {
+                    std::swap(b, d);
+                }
+
+                for (int u : g.adjlist[v]) {
+                    remove_from_adj_list(g, u, v);
+                }
+                g.adjlist[v].clear();
+                deleted[v] = true;
+
+                for (int u : g.adjlist[c])
+                    if (u!=d && !g.has_edge(a, u))
+                        g.add_edge(a, u);
+                for (int u : g.adjlist[d])
+                    if (u!=c && !g.has_edge(b, u))
+                        g.add_edge(b, u);
+                for (int u : g.adjlist[b])
+                    if (u!=a && !g.has_edge(c, u))
+                        g.add_edge(c, u);
+                for (int u : g.adjlist[a])
+                    if (u!=b && !g.has_edge(d, u))
+                        g.add_edge(d, u);
+
+                g.add_edge(a, c);
+                g.add_edge(a, d);
+                g.add_edge(b, c);
+                g.add_edge(b, d);
+
+                reductions.push_back(std::make_unique<BowTieReduction>(v, a, b, c, d));
+                made_a_change = true;
+            }
+        }
+    }
+
+    return made_a_change;
+}
+
 auto make_list_of_components(const SparseGraph & g) -> vector<vector<int>>
 {
     vector<vector<int>> components;
@@ -467,7 +575,8 @@ auto mwc(SparseGraph & g, const Params & params) -> Result
         bool b = vertex_folding(g, deleted, reductions);
         bool c = do_deg_3_reductions(g, in_cover, deleted, reductions);
         bool d = do_NAMEME_reductions(g, in_cover, deleted, reductions);
-        if (!a && !b && !c && !d)
+        bool e = do_bow_tie_reductions(g, in_cover, deleted, reductions);
+        if (!a && !b && !c && !d && !e)
             break;
     };
     check_adj_list_integrity(g);
