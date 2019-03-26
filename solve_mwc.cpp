@@ -166,25 +166,32 @@ struct Deg2Reduction : public Reduction
 
 // a list of tuples (v, w, x, y), where v is the vertex of deg 3,
 // and w and x are the kept neighbours
-struct Deg3Reduction : public Reduction
+struct FunnelReduction : public Reduction
 {
     int v;
-    int w;
-    int x;
+    vector<int> ww;
     int y;
 
-    Deg3Reduction(int v, int w, int x, int y) : v(v), w(w), x(x), y(y) {}
+    FunnelReduction(int v, vector<int> ww, int y) : v(v), ww(ww), y(y) {}
+
+    bool all_ww_are_in_cover(vector<bool> & in_cover)
+    {
+        for (int w : ww)
+            if (!in_cover[w])
+                return false;
+        return true;
+    }
 
     void unwind(vector<bool> & in_cover)
     {
-        if (in_cover[w] && in_cover[x]) {
+        if (all_ww_are_in_cover(in_cover)) {
             in_cover[y] = true;
         } else {
             in_cover[v] = true;
         }
     }
 
-    ~Deg3Reduction() {}
+    ~FunnelReduction() {}
 };
 
 struct BowTieReduction : public Reduction
@@ -291,46 +298,68 @@ bool vertex_folding(SparseGraph & g, vector<bool> & deleted,
     return made_a_change;
 }
 
-bool do_deg_3_reductions(SparseGraph & g, vector<bool> & in_cover, vector<bool> & deleted,
+bool has_any_edge(SparseGraph & g, int v, vector<int> & ww)
+{
+    for (int w : ww)
+        if (w != v && g.has_edge(v, w))
+                return true;
+    return false;
+}
+
+int num_edges(SparseGraph & g, vector<int> & vv)
+{
+    int retval = 0;
+    for (int v : vv) {
+        for (int w : vv) {
+            if (w > v && g.has_edge(v, w)) {
+                ++retval;
+            }
+        }
+    }
+    return retval;
+}
+
+bool do_funnel_reductions(SparseGraph & g, vector<bool> & in_cover, vector<bool> & deleted,
         vector<std::unique_ptr<Reduction>> & reductions)
 {
     bool made_a_change = false;
 
-    // Try to find vertex v with three neighbours w, x, and y, such that only
-    // w and x are adjacent.  We can then delete v, and y, adding the neighbours
-    // of y other than x to the adjacency lists of both w and x.
+    // Try to find vertex v with neighbours ww and y, such that ws are a clique
+    // and y is not adjacent to any member of ww.
+    // We can then delete v and y, adding the neighbours
+    // of y other than x to the adjacency list of each vertex in ww.
     for (unsigned v=0; v<g.n; v++) {
-        if (g.adjlist[v].size() == 3) {
-            int w = g.adjlist[v][0];
-            int x = g.adjlist[v][1];
-            int y = g.adjlist[v][2];
+        int lst_sz = g.adjlist[v].size();
+        if (lst_sz >= 3) {
+            if (num_edges(g, g.adjlist[v]) != (lst_sz-1) * (lst_sz-2) / 2)
+                continue;
 
-            bool edge_wx_exists = g.has_edge(w, x);
-            bool edge_xy_exists = g.has_edge(x, y);
-            bool edge_yw_exists = g.has_edge(y, w);
+            for (int y : g.adjlist[v]) {
+                if (!has_any_edge(g, y, g.adjlist[v])) {
+                    vector<int> ww;
+                    for (int w : g.adjlist[v])
+                        if (w != y)
+                            ww.push_back(w);
 
-            if (edge_wx_exists + edge_xy_exists + edge_yw_exists == 1) {
-                if (edge_xy_exists) {
-                    std::swap(y, w);
-                } else if (edge_yw_exists) {
-                    std::swap(y, x);
+                    for (int w : ww) {
+                        remove_from_adj_list(g, w, v);
+                    }
+                    remove_from_adj_list(g, y, v);
+                    for (int u : g.adjlist[y]) {
+                        remove_from_adj_list(g, u, y);
+                        for (int w : ww)
+                            if (!g.has_edge(u, w))
+                                g.add_edge(u, w);
+                    }
+                    g.adjlist[v].clear();
+                    g.adjlist[y].clear();
+                    deleted[v] = true;
+                    deleted[y] = true;
+                    reductions.push_back(std::make_unique<FunnelReduction>(v, ww, y));
+                    made_a_change = true;
+
+                    break;
                 }
-                remove_from_adj_list(g, w, v);
-                remove_from_adj_list(g, x, v);
-                remove_from_adj_list(g, y, v);
-                for (int u : g.adjlist[y]) {
-                    remove_from_adj_list(g, u, y);
-                    if (!g.has_edge(u, w))
-                        g.add_edge(u, w);
-                    if (!g.has_edge(u, x))
-                        g.add_edge(u, x);
-                }
-                g.adjlist[v].clear();
-                g.adjlist[y].clear();
-                deleted[v] = true;
-                deleted[y] = true;
-                reductions.push_back(std::make_unique<Deg3Reduction>(v, w, x, y));
-                made_a_change = true;
             }
         }
     }
@@ -572,9 +601,9 @@ auto mwc(SparseGraph & g, const Params & params) -> Result
 
     while (true) {
         bool a = isolated_vertex_removal(g, in_cover, deleted);
-        bool b = vertex_folding(g, deleted, reductions);
-        bool c = do_deg_3_reductions(g, in_cover, deleted, reductions);
-        bool d = do_NAMEME_reductions(g, in_cover, deleted, reductions);
+        bool b = do_NAMEME_reductions(g, in_cover, deleted, reductions);
+        bool c = vertex_folding(g, deleted, reductions);
+        bool d = do_funnel_reductions(g, in_cover, deleted, reductions);
         bool e = do_bow_tie_reductions(g, in_cover, deleted, reductions);
         if (!a && !b && !c && !d && !e)
             break;
