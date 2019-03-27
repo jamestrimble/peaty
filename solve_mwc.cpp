@@ -470,22 +470,17 @@ bool do_bow_tie_reductions(SparseGraph & g, vector<bool> & in_cover, vector<bool
                 vector<int> adjlist_c = g.adjlist[c];
                 vector<int> adjlist_d = g.adjlist[d];
                 for (int u : adjlist_c)
-                    if (u!=d && !g.has_edge(a, u))
+                    if (!g.has_edge(a, u))
                         g.add_edge(a, u);
                 for (int u : adjlist_d)
-                    if (u!=c && !g.has_edge(b, u))
+                    if (!g.has_edge(b, u))
                         g.add_edge(b, u);
                 for (int u : adjlist_b)
-                    if (u!=a && !g.has_edge(c, u))
+                    if (!g.has_edge(c, u))
                         g.add_edge(c, u);
                 for (int u : adjlist_a)
-                    if (u!=b && !g.has_edge(d, u))
+                    if (!g.has_edge(d, u))
                         g.add_edge(d, u);
-
-                g.add_edge(a, c);
-                g.add_edge(a, d);
-                g.add_edge(b, c);
-                g.add_edge(b, d);
 
                 reductions.push_back(std::make_unique<BowTieReduction>(v, a, b, c, d));
                 made_a_change = true;
@@ -562,7 +557,7 @@ auto find_vertex_cover_of_subgraph(const SparseGraph & g, vector<int> component,
     return vertex_cover;
 }
 
-auto mwc(SparseGraph & g, const Params & params) -> Result
+auto mwc(SparseGraph g, const Params & params) -> Result
 {
     vector<bool> deleted = g.vertex_has_loop;
     vector<bool> in_cover = g.vertex_has_loop;
