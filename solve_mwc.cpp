@@ -207,16 +207,13 @@ struct BowTieReduction : public Reduction
         if (!in_cover[a]) {
             in_cover[c] = false;
             in_cover[v] = true;
-        } else
-        if (!in_cover[b]) {
+        } else if (!in_cover[b]) {
             in_cover[d] = false;
             in_cover[v] = true;
-        } else
-        if (!in_cover[c]) {
+        } else if (!in_cover[c]) {
             in_cover[b] = false;
             in_cover[v] = true;
-        } else
-        if (!in_cover[d]) {
+        } else if (!in_cover[d]) {
             in_cover[a] = false;
             in_cover[v] = true;
         } else {
@@ -468,16 +465,20 @@ bool do_bow_tie_reductions(SparseGraph & g, vector<bool> & in_cover, vector<bool
                 g.adjlist[v].clear();
                 deleted[v] = true;
 
-                for (int u : g.adjlist[c])
+                vector<int> adjlist_a = g.adjlist[a];
+                vector<int> adjlist_b = g.adjlist[b];
+                vector<int> adjlist_c = g.adjlist[c];
+                vector<int> adjlist_d = g.adjlist[d];
+                for (int u : adjlist_c)
                     if (u!=d && !g.has_edge(a, u))
                         g.add_edge(a, u);
-                for (int u : g.adjlist[d])
+                for (int u : adjlist_d)
                     if (u!=c && !g.has_edge(b, u))
                         g.add_edge(b, u);
-                for (int u : g.adjlist[b])
+                for (int u : adjlist_b)
                     if (u!=a && !g.has_edge(c, u))
                         g.add_edge(c, u);
-                for (int u : g.adjlist[a])
+                for (int u : adjlist_a)
                     if (u!=b && !g.has_edge(d, u))
                         g.add_edge(d, u);
 
