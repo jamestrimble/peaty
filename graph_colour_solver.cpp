@@ -405,3 +405,56 @@ int find_colouring_number(const ColouringGraph & g, int f, std::atomic_bool & te
     return num_colours;
 }
 
+unsigned long long ColouringNumberFinder::get_search_node_count()
+{
+    return search_node_count;
+}
+
+int ColouringNumberFinder::get_colouring_number()
+{
+    return colouring_number;
+}
+
+void ColouringNumberFinder::search() {
+#ifdef WITHOUT_COLOURING_UPPER_BOUND
+    return;
+#endif
+
+    if (colouring_number != -1)
+        return;    // solution has been found already
+
+    std::atomic_bool terminate_early(false);
+
+    std::vector<int> vv = randomised_vertex_order(g, rng_seed);
+    ColouringGraph sorted_g = g.induced_subgraph(vv);
+    sorted_g.make_adjacency_lists();
+
+    struct Solution clq(g.n, f);
+
+    unsigned long long local_search_node_count = 0;
+
+    solve(&sorted_g, &local_search_node_count, local_search_node_limit, &clq, current_target_num_colours, f, terminate_early);
+    search_node_count += local_search_node_count;
+
+    if (local_search_node_count >= local_search_node_limit) {
+        local_search_node_limit = local_search_node_limit + local_search_node_limit / 10;
+        ++rng_seed;
+        vv = randomised_vertex_order(g, rng_seed);
+        sorted_g = g.induced_subgraph(vv);
+        sorted_g.make_adjacency_lists();
+    } else {
+        if (clq.size == g.n * f) {
+            colouring_number = current_target_num_colours;
+        } else {
+            ++current_target_num_colours;
+        }
+    }
+}
+
+ColouringNumberFinder::ColouringNumberFinder(const ColouringGraph & g, int f)
+        : g(g), sorted_graph(0), f(f)
+{
+    std::vector<int> vv = randomised_vertex_order(g, rng_seed);
+    ColouringGraph sorted_g = g.induced_subgraph(vv);
+    sorted_g.make_adjacency_lists();
+}

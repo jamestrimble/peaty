@@ -1,12 +1,5 @@
 #define _POSIX_SOURCE
 
-#include "graph.h"
-#include "sparse_graph.h"
-#include "util.h"
-#include "sequential_solver.h"
-#include "params.h"
-#include "graph_colour_solver.h"
-
 #include <argp.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -18,7 +11,12 @@
 #include <condition_variable>
 #include <functional>
 #include <mutex>
-#include <thread>
+
+#include "graph.h"
+#include "sparse_graph.h"
+#include "util.h"
+#include "sequential_solver.h"
+#include "params.h"
 
 using std::atomic;
 using std::condition_variable;
@@ -545,38 +543,10 @@ auto find_vertex_cover_of_subgraph(const SparseGraph & g, vector<int> component,
 //    }
 //    subgraph.print_dimacs_format();
 
-    std::atomic_bool terminate_colouring_early(false);
-    std::atomic_int upper_bound_from_colouring(-1);
-
-#ifndef WITHOUT_COLOURING_UPPER_BOUND
-    ColouringGraph cg(subgraph.n);
-    for (unsigned v=0; v<subgraph.n; v++)
-        for (int w : subgraph.adjlist[v])
-            if (int(v) < w)
-                cg.add_edge(v, w);
-
-    std::thread colouring_thread([&cg, &terminate_colouring_early, &upper_bound_from_colouring](){
-                // first, use colouring number
-                int colouring_number = find_colouring_number(cg, 1, terminate_colouring_early);
-                if (colouring_number != -1) {
-                    upper_bound_from_colouring = colouring_number;
-                    // then, find better bound using 2-fold colouring
-                    int fractional_colouring_number = find_colouring_number(cg, 2, terminate_colouring_early);
-                    if (fractional_colouring_number != -1) {
-                        upper_bound_from_colouring = fractional_colouring_number / 2;
-                    }
-                }
-            });
-#endif
-
     VtxList independent_set(g.n);
     long search_node_count = 0;
 
-    sequential_mwc(subgraph, params, independent_set, search_node_count, upper_bound_from_colouring);
-#ifndef WITHOUT_COLOURING_UPPER_BOUND
-    terminate_colouring_early = true;
-    colouring_thread.join();
-#endif
+    sequential_mwc(subgraph, params, independent_set, search_node_count);
 
     vector<bool> vtx_is_in_ind_set(subgraph.n);
     for (int v : independent_set.vv) {

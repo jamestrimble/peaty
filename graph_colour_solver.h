@@ -1,3 +1,6 @@
+#ifndef GRAPH_COLOUR_SOLVER_H
+#define GRAPH_COLOUR_SOLVER_H
+
 #include <atomic>
 #include <vector>
 
@@ -35,3 +38,23 @@ struct Solution {
 //        int num_colours);
 
 int find_colouring_number(const ColouringGraph & g, int f, std::atomic_bool & terminate_early);
+
+class ColouringNumberFinder
+{
+    const ColouringGraph & g;
+    ColouringGraph sorted_graph;
+    int f;
+    int current_target_num_colours = 0;
+    unsigned rng_seed = 0;
+    unsigned long long search_node_count = 0;
+    unsigned long long local_search_node_limit = 1000;
+    int colouring_number = -1;
+
+public:
+    unsigned long long get_search_node_count();
+    int get_colouring_number();
+    void search();
+    ColouringNumberFinder(const ColouringGraph & g, int f);
+};
+
+#endif

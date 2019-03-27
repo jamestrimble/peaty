@@ -5,6 +5,7 @@
 #include "util.h"
 #include "root_node_processing.h"
 #include "params.h"
+#include "graph_colour_solver.h"
 
 #include <iostream>  // TODO: don't include this
 
@@ -227,6 +228,8 @@ class MWC {
     vector<vector<unsigned long long>> new_P_bitsets;
     const vector<int> & vertex_numbers_in_original_graph;
     LocalSearcher & local_searcher;
+    ColouringNumberFinder & exact_colourer1;
+    ColouringNumberFinder & exact_colourer2;
 
     auto update_incumbent_if_necessary(VtxList & C)
     {
@@ -240,22 +243,36 @@ class MWC {
         }
     }
 
-    void expand(VtxList& C, vector<unsigned long long> & P_bitset, long & search_node_count,
-            std::atomic_int & ind_set_upper_bound)
+    void expand(VtxList& C, vector<unsigned long long> & P_bitset, long & search_node_count)
     {
         ++search_node_count;
-        if (g.n > 30 && search_node_count > local_searcher.get_time()) {
-            local_searcher.search();
-        }
-
         if (bitset_empty(P_bitset, g.numwords)) {
             update_incumbent_if_necessary(C);
             return;
         }
 
-        int ind_set_upper_bound_int = ind_set_upper_bound.load();
-        if (ind_set_upper_bound_int != -1 && int(incumbent.vv.size()) == ind_set_upper_bound_int) {
-            return;
+        if (g.n > 30) {
+            if (search_node_count > local_searcher.get_time()) {
+                local_searcher.search();
+            }
+            if (search_node_count > exact_colourer1.get_search_node_count() * 10) {
+                exact_colourer1.search();
+            }
+            int colouring_num = exact_colourer1.get_colouring_number();
+            if (colouring_num != -1 && int(incumbent.vv.size()) == colouring_num) {
+                return;
+            }
+            if (exact_colourer1.get_colouring_number() != -1 &&
+                    search_node_count > exact_colourer2.get_search_node_count() * 1000) {
+                exact_colourer2.search();
+            }
+            int fractional_colouring_num = exact_colourer2.get_colouring_number();
+            if (fractional_colouring_num != -1) {
+                int fractional_colouring_bound = fractional_colouring_num / 2;
+                if (int(incumbent.vv.size()) == fractional_colouring_bound) {
+                    return;
+                }
+            }
         }
 
         vector<unsigned long long> & branch_vv_bitset = branch_vv_bitsets[C.vv.size()];
@@ -277,7 +294,7 @@ class MWC {
                 unset_bit(branch_vv_bitset, v);
                 bitset_intersection_with_complement(P_bitset, g.bit_complement_nd[v], new_P_bitset, g.numwords);
                 C.push_vtx(v, g);
-                expand(C, new_P_bitset, search_node_count, ind_set_upper_bound);
+                expand(C, new_P_bitset, search_node_count);
                 set_bit(P_bitset, v);
                 C.pop_vtx(g);
             }
@@ -286,22 +303,23 @@ class MWC {
 
 public:
     MWC(Graph & g, const Params params, VtxList & incumbent, Colourer & colourer,
-            const vector<int> & vertex_numbers_in_original_graph, LocalSearcher & local_searcher)
+            const vector<int> & vertex_numbers_in_original_graph, LocalSearcher & local_searcher,
+            ColouringNumberFinder & exact_colourer1, ColouringNumberFinder & exact_colourer2)
             : g(g), params(params), colourer(colourer), incumbent(incumbent), branch_vv_bitsets(g.n), new_P_bitsets(g.n),
-              vertex_numbers_in_original_graph(vertex_numbers_in_original_graph), local_searcher(local_searcher)
+              vertex_numbers_in_original_graph(vertex_numbers_in_original_graph), local_searcher(local_searcher),
+              exact_colourer1(exact_colourer1), exact_colourer2(exact_colourer2)
     {
     }
 
-    auto run(VtxList & C, long & search_node_count, std::atomic_int & ind_set_upper_bound) -> void
+    auto run(VtxList & C, long & search_node_count) -> void
     {
         vector<unsigned long long> P_bitset(g.numwords, 0);
         set_first_n_bits(P_bitset, g.n);
-        expand(C, P_bitset, search_node_count, ind_set_upper_bound);
+        expand(C, P_bitset, search_node_count);
     }
 };
 
-auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumbent, long & search_node_count,
-        std::atomic_int & ind_set_upper_bound) -> void
+auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumbent, long & search_node_count) -> void
 {
     VtxList C(g.n);
 
@@ -309,6 +327,15 @@ auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumb
     if (g.n > 30)  // don't bother with local search for very small graphs
         for (int i=0; i<10; i++)
             ls.search();
+
+    ColouringGraph cg(g.n);
+    for (unsigned v=0; v<g.n; v++)
+        for (int w : g.adjlist[v])
+            if (int(v) < w)
+                cg.add_edge(v, w);
+
+    ColouringNumberFinder exact_colourer1(cg, 1);
+    ColouringNumberFinder exact_colourer2(cg, 2);
 
     auto vv0 = initialise(g);
 //    printf("Initial incumbent weight %ld\n", incumbent.total_wt);
@@ -322,6 +349,6 @@ auto sequential_mwc(const SparseGraph & g, const Params params, VtxList & incumb
     Graph ordered_subgraph = ordered_graph.complement_of_induced_subgraph(vv1);
     std::shared_ptr<Colourer> colourer = Colourer::create_colourer(ordered_subgraph, params);
 
-    MWC(ordered_subgraph, params, incumbent, *colourer, vv0, ls).run(
-            C, search_node_count, ind_set_upper_bound);
+    MWC(ordered_subgraph, params, incumbent, *colourer, vv0, ls, exact_colourer1, exact_colourer2).run(
+            C, search_node_count);
 }
