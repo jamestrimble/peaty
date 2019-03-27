@@ -314,6 +314,8 @@ int num_edges(SparseGraph & g, vector<int> & vv)
     return retval;
 }
 
+// TODO: maybe do the normal, more general version of funnel
+// in which y can be adjacent so some of ww
 bool do_funnel_reductions(SparseGraph & g, vector<bool> & in_cover, vector<bool> & deleted,
         vector<std::unique_ptr<Reduction>> & reductions)
 {
