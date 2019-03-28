@@ -255,7 +255,7 @@ class MWC {
             if (search_node_count > local_searcher.get_time()) {
                 local_searcher.search();
             }
-            if (search_node_count > exact_colourer1.get_search_node_count() * 10) {
+            if (search_node_count > exact_colourer1.get_search_node_count() * 50) {
                 exact_colourer1.search();
             }
             int colouring_num = exact_colourer1.get_colouring_number();
