@@ -386,7 +386,7 @@ void check_adj_list_integrity(SparseGraph & g)
 
 // If there is a vertex v with a neighbour x who is adjacent to all of v's other neighbours,
 // it's safe to assume that x is in the vertex cover.
-bool do_NAMEME_reductions(SparseGraph & g, vector<bool> & in_cover, vector<bool> & deleted,
+bool do_domination_reductions(SparseGraph & g, vector<bool> & in_cover, vector<bool> & deleted,
         vector<std::unique_ptr<Reduction>> & reductions)
 {
     bool made_a_change = false;
@@ -569,10 +569,10 @@ auto mwc(SparseGraph g, const Params & params) -> Result
 
     while (true) {
         bool a = isolated_vertex_removal(g, in_cover, deleted);
-        bool b = do_NAMEME_reductions(g, in_cover, deleted, reductions);
+        bool b = do_domination_reductions(g, in_cover, deleted, reductions);
         bool c = vertex_folding(g, deleted, reductions);
         bool d = do_funnel_reductions(g, in_cover, deleted, reductions);
-        bool e = do_bow_tie_reductions(g, in_cover, deleted, reductions);
+        bool e = false;  //do_bow_tie_reductions(g, in_cover, deleted, reductions);
         if (!a && !b && !c && !d && !e)
             break;
     };
