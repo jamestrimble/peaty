@@ -1,11 +1,14 @@
-A vertex cover solver that needs a lot of tidying up.
+Peaty is an exact solver for the vertex cover problem, which was written as an entry to the 2019 [PACE challenge](https://pacechallenge.org/).  
 
 To compile:
 ```
+mkdir build
+cd build
+cmake ..
 make
 ```
 
 To run:
 ```
-python solver.py instance.hgr
+./build/solve_vc < instance.hgr
 ```
