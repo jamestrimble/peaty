@@ -105,9 +105,17 @@ int main(int argc, char** argv)
     argp_parse(&argp, argc, argv, 0, 0, 0);
 
     struct ColouringGraph g = readColouringGraph();
+    struct ColouringGraph complement_g(g.n);
+    for (int i=0; i<g.n; i++) {
+        for (int j=i+1; j<g.n; j++) {
+            if (!g.adj_matrix[i][j]) {
+                complement_g.add_edge(i, j);
+            }
+        }
+    }
 
     std::atomic_bool terminate_early(false);
-    int colouring_number = find_colouring_number(g, arguments.fractional_level, terminate_early);
+    int colouring_number = find_colouring_number(complement_g, arguments.fractional_level, terminate_early);
 
     printf("%d-fold colouring number is %d\n", arguments.fractional_level, colouring_number);
 }
