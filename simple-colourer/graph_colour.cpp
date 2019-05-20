@@ -1,6 +1,6 @@
 #define _POSIX_SOURCE
 
-#include "../vc_solver/graph_colour_solver.h"
+#include "../graph_colour_solver.h"
 
 #include <iostream>
 #include <string>
@@ -18,7 +18,7 @@ void fail(const std::string & msg) {
 }
 
 
-static char doc[] = "Colour a graph.  The expected file format is the DIMACS clique format.";
+static char doc[] = "Colour a graph read from standard input.  The expected format is the DIMACS clique format.";
 static char args_doc[] = "FILENAME";
 static struct argp_option options[] = {
     {"fractional-level", 'f', "LEVEL", 0, "1 for colouring, 2 for two colours per vertex, etc"},
@@ -29,14 +29,12 @@ static struct argp_option options[] = {
 static struct {
     int fractional_level;
     int time_limit;
-    char *filename;
     int arg_num;
 } arguments;
 
 void set_default_arguments() {
     arguments.fractional_level = 1;
     arguments.time_limit = 0;
-    arguments.filename = NULL;
     arguments.arg_num = 0;
 }
 
@@ -49,14 +47,9 @@ static error_t parse_opt (int key, char *arg, struct argp_state *state) {
             arguments.time_limit = atoi(arg);
             break;
         case ARGP_KEY_ARG:
-            if (arguments.arg_num >= 1)
-                argp_usage(state);
-            arguments.filename = arg;
-            arguments.arg_num++;
+            argp_usage(state);
             break;
         case ARGP_KEY_END:
-            if (arguments.arg_num == 0)
-                argp_usage(state);
             break;
         default: return ARGP_ERR_UNKNOWN;
     }
@@ -67,7 +60,7 @@ static struct argp argp = { options, parse_opt, args_doc, doc };
 
 /******************************************************************************/
 
-struct ColouringGraph readColouringGraph(char* filename)
+struct ColouringGraph readColouringGraph()
 {
     char* line = NULL;
     size_t nchar = 0;
@@ -111,9 +104,9 @@ int main(int argc, char** argv)
     set_default_arguments();
     argp_parse(&argp, argc, argv, 0, 0, 0);
 
-    struct ColouringGraph g = readColouringGraph(arguments.filename);
+    struct ColouringGraph g = readColouringGraph();
 
-    std::atomic_bool terminate_early(true);
+    std::atomic_bool terminate_early(false);
     int colouring_number = find_colouring_number(g, arguments.fractional_level, terminate_early);
 
     printf("%d-fold colouring number is %d\n", arguments.fractional_level, colouring_number);
